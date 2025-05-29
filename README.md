@@ -2,7 +2,7 @@
 
 A full-stack multiplayer quiz game that makes learning fun and competitive! Built with the MERN stack (MongoDB, Express, React, Node.js).
 
-## 🚀 Features
+## Features
 
 - Host can create games with customizable questions (MCQ, True/False).
 - Real-time gameplay with scores based on correctness and speed and negative score for wrong answers.
@@ -11,7 +11,7 @@ A full-stack multiplayer quiz game that makes learning fun and competitive! Buil
 - Mobile and desktop friendly.
 - Host history, player late join/early exit tracking.
 
-## 🧩 Tech Stack
+## Tech Stack
 
 - **Frontend**: React.js
 - **Backend**: Node.js, Express
@@ -30,7 +30,7 @@ brain-bash/
 └── package.json      # Root scripts (optional)
 ```
 
-## 🛠️ Getting Started
+## Getting Started
 
 ### 1. Clone the Repo
 
@@ -65,7 +65,7 @@ npm run dev
 
 > This runs both client and server concurrently (requires setup in root `package.json` using `concurrently`).
 
-## 📜 License
+## License
 
 MIT License. Feel free to use and build on top of this!
 
