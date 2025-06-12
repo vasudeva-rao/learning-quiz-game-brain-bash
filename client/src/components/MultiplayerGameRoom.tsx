@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,7 +66,6 @@ const MultiplayerGameRoom = ({ gameSettings, questions, isHost, playerName, onEn
 
   if (gameState.phase === 'lobby') {
     const playerCount = gameState.players.filter(p => p && p.name).length;
-    const showAutoStart = playerCount >= 2 && gameState.autoStartTimer > 0;
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-teal-500 p-4">
@@ -103,17 +101,7 @@ const MultiplayerGameRoom = ({ gameSettings, questions, isHost, playerName, onEn
                   <Badge variant="secondary">{playerCount}</Badge>
                 </div>
                 
-                {showAutoStart && (
-                  <div className="text-center py-4">
-                    <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4 mb-4">
-                      <h3 className="text-white font-bold text-lg mb-2">Game Starting Soon!</h3>
-                      <div className="text-3xl font-bold text-green-400 mb-2">{gameState.autoStartTimer}</div>
-                      <p className="text-white/80 text-sm">seconds remaining</p>
-                    </div>
-                  </div>
-                )}
-                
-                {isHost && !showAutoStart && (
+                {isHost && (
                   <Button 
                     onClick={startGame}
                     className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600"
@@ -122,7 +110,7 @@ const MultiplayerGameRoom = ({ gameSettings, questions, isHost, playerName, onEn
                     Start Game
                   </Button>
                 )}
-                {!isHost && !showAutoStart && (
+                {!isHost && (
                   <div className="text-center text-white/80">
                     {playerCount < 2 ? 'Waiting for more players...' : 'Waiting for host to start the game...'}
                   </div>
@@ -249,11 +237,16 @@ const MultiplayerGameRoom = ({ gameSettings, questions, isHost, playerName, onEn
                 currentPlayer.isCorrect ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
               }`}>
                 {currentPlayer.isCorrect ? (
-                  <CheckCircle className="w-5 h-5" />
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    <span>Correct!</span>
+                  </>
                 ) : (
-                  <XCircle className="w-5 h-5" />
+                  <>
+                    <XCircle className="w-5 h-5" />
+                    <span>Incorrect</span>
+                  </>
                 )}
-                <span>Answer submitted! {currentPlayer.isCorrect ? 'Correct!' : 'Incorrect'}</span>
               </div>
             </div>
           )}
@@ -268,76 +261,59 @@ const MultiplayerGameRoom = ({ gameSettings, questions, isHost, playerName, onEn
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold text-white mb-4">Question Results</h2>
-            <p className="text-white/80 text-xl">
-              Correct answer: {currentQuestion?.correctAnswers.join(', ')}
-            </p>
+            <div className="flex items-center justify-center gap-4">
+              <Badge variant="secondary" className="text-lg px-4 py-2">
+                Question {gameState.currentQuestionIndex + 1} of {questions.length}
+              </Badge>
+              <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2">
+                <Clock className="w-5 h-5 text-white" />
+                <span className="text-white font-bold text-xl">{gameState.timeLeft}s</span>
+              </div>
+            </div>
           </div>
 
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20 mb-6">
+          <Card className="mb-8 bg-white/10 backdrop-blur-sm border-white/20">
+            <CardContent className="p-8">
+              <h3 className="text-2xl font-bold text-white mb-4">Correct Answer:</h3>
+              <div className="text-xl text-white/90">
+                {currentQuestion?.correctAnswers.join(', ')}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
             <CardHeader>
-              <CardTitle className="text-white text-center flex items-center justify-center gap-2">
-                <Trophy className="w-6 h-6" />
-                Live Leaderboard
+              <CardTitle className="text-white flex items-center gap-2">
+                <Trophy className="w-5 h-5" />
+                Player Results
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {sortedPlayers.map((player, index) => (
-                  <div 
-                    key={player.id} 
-                    className={`flex items-center justify-between p-4 rounded-lg ${
-                      player.name === playerName ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-white/5'
-                    }`}
-                  >
+                  <div key={player.id} className="flex items-center justify-between bg-white/5 rounded-lg p-4">
                     <div className="flex items-center gap-3">
-                      <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                        index === 0 ? 'bg-yellow-500 text-black' :
-                        index === 1 ? 'bg-gray-300 text-black' :
-                        index === 2 ? 'bg-orange-400 text-black' :
-                        'bg-white/20 text-white'
-                      }`}>
-                        {index + 1}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-white font-medium">{player.name}</span>
-                        {player.hasAnswered && (
-                          player.isCorrect ? (
-                            <CheckCircle className="w-4 h-4 text-green-400" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-red-400" />
-                          )
-                        )}
-                      </div>
+                      {index === 0 && <Crown className="w-5 h-5 text-yellow-400" />}
+                      <span className="text-white font-medium text-lg">{player.name}</span>
+                      {player.hasAnswered && (
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm ${
+                          player.isCorrect ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
+                        }`}>
+                          {player.isCorrect ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                          {player.isCorrect ? 'Correct' : 'Incorrect'}
+                        </div>
+                      )}
                     </div>
-                    <span className="text-white font-bold text-lg">{player.score}</span>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={player.name === playerName ? "default" : "secondary"} className="text-lg">
+                        {player.score} pts
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
-
-          <div className="text-center">
-            <p className="text-white/60 mb-4">
-              {gameState.currentQuestionIndex < questions.length - 1 
-                ? `Next question in ${gameState.timeLeft} seconds...`
-                : `Game ending in ${gameState.timeLeft} seconds...`
-              }
-            </p>
-            {isHost && (
-              <Button 
-                onClick={() => {
-                  if (gameState.currentQuestionIndex < questions.length - 1) {
-                    nextQuestion();
-                  } else {
-                    endGame();
-                  }
-                }}
-                className="bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600"
-              >
-                Skip Timer
-              </Button>
-            )}
-          </div>
         </div>
       </div>
     );
@@ -348,60 +324,41 @@ const MultiplayerGameRoom = ({ gameSettings, questions, isHost, playerName, onEn
       <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-teal-500 p-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <Trophy className="w-24 h-24 text-yellow-400 mx-auto mb-6" />
-            <h1 className="text-5xl font-bold text-white mb-4">Game Over!</h1>
-            <p className="text-white/80 text-xl">Final Results for {gameSettings.title}</p>
+            <h2 className="text-4xl font-bold text-white mb-4">Game Over!</h2>
+            <p className="text-white/80 text-xl">Final Results</p>
           </div>
 
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20 mb-8">
+          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
             <CardHeader>
-              <CardTitle className="text-white text-center text-2xl">Final Leaderboard</CardTitle>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Trophy className="w-5 h-5" />
+                Final Standings
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {sortedPlayers.map((player, index) => (
-                  <div 
-                    key={player.id} 
-                    className={`flex items-center justify-between p-6 rounded-lg ${
-                      player.name === playerName ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-white/5'
-                    } ${index < 3 ? 'border-2 border-yellow-400/50' : ''}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl ${
-                        index === 0 ? 'bg-yellow-500 text-black' :
-                        index === 1 ? 'bg-gray-300 text-black' :
-                        index === 2 ? 'bg-orange-400 text-black' :
-                        'bg-white/20 text-white'
-                      }`}>
-                        {index + 1}
-                      </span>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-bold text-lg">{player.name}</span>
-                          {player.name === playerName && (
-                            <Badge variant="default">You</Badge>
-                          )}
-                        </div>
-                        {index < 3 && (
-                          <span className="text-yellow-400 text-sm font-medium">
-                            {index === 0 ? '🏆 Winner!' : index === 1 ? '🥈 Runner-up' : '🥉 Third place'}
-                          </span>
-                        )}
-                      </div>
+                  <div key={player.id} className="flex items-center justify-between bg-white/5 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      {index === 0 && <Crown className="w-6 h-6 text-yellow-400" />}
+                      <span className="text-white font-medium text-lg">{player.name}</span>
                     </div>
-                    <span className="text-white font-bold text-2xl">{player.score}</span>
+                    <Badge variant={player.name === playerName ? "default" : "secondary"} className="text-lg">
+                      {player.score} pts
+                    </Badge>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          <div className="text-center">
-            <Button 
+          <div className="mt-8 text-center">
+            <Button
               onClick={onEndGame}
-              className="bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 px-8 py-3 text-lg"
+              className="bg-white text-purple-600 hover:bg-white/90"
             >
-              Play Again
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Return to Home
             </Button>
           </div>
         </div>
