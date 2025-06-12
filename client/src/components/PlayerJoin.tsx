@@ -25,13 +25,13 @@ const PlayerJoin = ({ onBack }: PlayerJoinProps) => {
 
   if (gameStarted) {
     return (
-      <GameRoom 
+      <GameRoom
         gameSettings={{
           title: "Quiz Game",
           passcode: passcode,
           requirePasscode: requirePasscode,
           negativePoints: false,
-          timeLimit: 10
+          timeLimit: 10,
         }}
         questions={[]}
         isHost={false}
@@ -45,8 +45,8 @@ const PlayerJoin = ({ onBack }: PlayerJoinProps) => {
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-teal-500 p-4">
       <div className="max-w-md mx-auto">
         <div className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={onBack}
             className="text-white hover:bg-white/10"
           >
@@ -62,7 +62,9 @@ const PlayerJoin = ({ onBack }: PlayerJoinProps) => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="playerName" className="text-white">Your Name</Label>
+              <Label htmlFor="playerName" className="text-white">
+                Your Name
+              </Label>
               <Input
                 id="playerName"
                 value={playerName}
@@ -73,7 +75,9 @@ const PlayerJoin = ({ onBack }: PlayerJoinProps) => {
             </div>
 
             <div>
-              <Label htmlFor="gameCode" className="text-white">Game Code</Label>
+              <Label htmlFor="gameCode" className="text-white">
+                Game Code
+              </Label>
               <Input
                 id="gameCode"
                 value={gameCode}
@@ -83,7 +87,7 @@ const PlayerJoin = ({ onBack }: PlayerJoinProps) => {
               />
             </div>
 
-            <div>
+            {/* <div>
               <Label htmlFor="passcode" className="text-white">Passcode (if required)</Label>
               <Input
                 id="passcode"
@@ -92,7 +96,7 @@ const PlayerJoin = ({ onBack }: PlayerJoinProps) => {
                 placeholder="Enter passcode..."
                 className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
               />
-            </div>
+            </div> */}
 
             <Button
               onClick={joinGame}
