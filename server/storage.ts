@@ -5,6 +5,7 @@ export interface IStorage {
   createGame(game: InsertGame & { hostId: number }): Promise<Game>;
   getGameByRoomCode(roomCode: string): Promise<Game | undefined>;
   getGameById(id: number): Promise<Game | undefined>;
+  getGamesByHostId(hostId: number): Promise<Game[]>;
   updateGameStatus(gameId: number, status: string): Promise<Game | undefined>;
   updateCurrentQuestion(gameId: number, questionIndex: number): Promise<Game | undefined>;
   
@@ -71,6 +72,12 @@ export class MemStorage implements IStorage {
 
   async getGameById(id: number): Promise<Game | undefined> {
     return this.games.get(id);
+  }
+
+  async getGamesByHostId(hostId: number): Promise<Game[]> {
+    return Array.from(this.games.values())
+      .filter(game => game.hostId === hostId)
+      .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
   }
 
   async updateGameStatus(gameId: number, status: string): Promise<Game | undefined> {

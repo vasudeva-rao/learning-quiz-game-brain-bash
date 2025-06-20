@@ -130,5 +130,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get host's game history
+  app.get("/api/host/games", async (req, res) => {
+    try {
+      const hostId = 1; // TODO: Get from session/auth
+      const games = await storage.getGamesByHostId(hostId);
+      
+      // Add player count and question count for each game
+      const gamesWithDetails = await Promise.all(
+        games.map(async (game) => {
+          const players = await storage.getPlayersByGameId(game.id);
+          const questions = await storage.getQuestionsByGameId(game.id);
+          return {
+            ...game,
+            playerCount: players.filter(p => !p.isHost).length,
+            questionCount: questions.length,
+          };
+        })
+      );
+      
+      res.json(gamesWithDetails);
+    } catch (error) {
+      console.error("Error fetching host games:", error);
+      res.status(500).json({ error: "Failed to fetch games" });
+    }
+  });
+
   return httpServer;
 }

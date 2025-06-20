@@ -18,7 +18,7 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
   const [game, setGame] = useState<GameData | null>(null);
 
   // Fetch initial game data
-  const { data: gameData } = useQuery({
+  const { data: gameData } = useQuery<{game: GameData, players: PlayerData[]}>({
     queryKey: [`/api/games/${gameState.roomCode}`],
     enabled: !!gameState.roomCode,
   });
@@ -36,6 +36,13 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
         case 'game_state':
           setGame(message.payload.game);
           setPlayers(message.payload.players);
+          break;
+        case 'joined_game':
+          setGame(message.payload.game);
+          setPlayers(message.payload.players);
+          break;
+        case 'host_connected':
+          setGame(message.payload.game);
           break;
         case 'question_started':
           onNavigate({ type: 'gameplay' });

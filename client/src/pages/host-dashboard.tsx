@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Plus, Edit, Trash2, Play, Save, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { X, Plus, Edit, Trash2, Play, Save, RefreshCw, History, Users, HelpCircle, Calendar } from "lucide-react";
 import { GameState, QuestionData, ANSWER_COLORS, ANSWER_TEXT_COLORS } from "@/lib/game-types";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 interface HostDashboardProps {
   gameState: GameState;
@@ -21,6 +23,17 @@ interface Question {
   correctAnswerIndex: number;
 }
 
+interface GameHistory {
+  id: number;
+  title: string;
+  description: string | null;
+  roomCode: string;
+  status: string;
+  playerCount: number;
+  questionCount: number;
+  createdAt: string;
+}
+
 export default function HostDashboard({ gameState, onNavigate }: HostDashboardProps) {
   const { toast } = useToast();
   const [gameTitle, setGameTitle] = useState("");
@@ -29,6 +42,11 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
   const [pointsPerQuestion, setPointsPerQuestion] = useState("1000");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+
+  // Fetch game history
+  const { data: gameHistory = [] } = useQuery<GameHistory[]>({
+    queryKey: ['/api/host/games'],
+  });
 
   const addQuestion = () => {
     setQuestions([...questions, {
@@ -122,10 +140,10 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
   return (
     <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)]">
       <section className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <Card className="p-8 shadow-2xl">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold text-gray-800">Create New Quiz Game</h2>
+              <h2 className="text-3xl font-bold text-gray-800">Host Dashboard</h2>
               <Button 
                 variant="ghost" 
                 size="icon"
@@ -135,7 +153,14 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
               </Button>
             </div>
 
-            {/* Game Settings */}
+            <Tabs defaultValue="create" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="create">Create New Game</TabsTrigger>
+                <TabsTrigger value="history">Game History</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="create" className="mt-6">
+                {/* Game Settings */}
             <div className="grid md:grid-cols-2 gap-8 mb-8">
               <div>
                 <Label className="text-sm font-semibold text-gray-700 mb-2">Game Title</Label>
@@ -268,26 +293,115 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
               )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex space-x-4">
-              <Button 
-                onClick={createGame}
-                disabled={isCreating}
-                className="bg-gradient-to-r from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] text-white px-8 py-3 text-lg flex-1 hover:shadow-lg transition-shadow"
-              >
-                {isCreating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    Create Game
-                  </>
-                )}
-              </Button>
-            </div>
+                {/* Action Buttons */}
+                <div className="flex space-x-4">
+                  <Button 
+                    onClick={createGame}
+                    disabled={isCreating}
+                    className="bg-gradient-to-r from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] text-white px-8 py-3 text-lg flex-1 hover:shadow-lg transition-shadow"
+                  >
+                    {isCreating ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        Create Game
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="history" className="mt-6">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-gray-800">Your Game History</h3>
+                    <div className="text-sm text-gray-500">
+                      {gameHistory?.length || 0} total games
+                    </div>
+                  </div>
+
+                  {gameHistory && gameHistory.length > 0 ? (
+                    <div className="grid gap-4">
+                      {gameHistory.map((game: GameHistory) => (
+                        <Card key={game.id} className="p-6 hover:shadow-lg transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <h4 className="text-lg font-semibold text-gray-800">{game.title}</h4>
+                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                  game.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                  game.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {game.status}
+                                </span>
+                              </div>
+                              {game.description && (
+                                <p className="text-gray-600 mb-3">{game.description}</p>
+                              )}
+                              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                <div className="flex items-center space-x-1">
+                                  <Users className="w-4 h-4" />
+                                  <span>{game.playerCount} players</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <HelpCircle className="w-4 h-4" />
+                                  <span>{game.questionCount} questions</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <Calendar className="w-4 h-4" />
+                                  <span>{new Date(game.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="bg-quiz-purple text-white px-3 py-1 rounded-full text-sm font-semibold mb-2">
+                                {game.roomCode}
+                              </div>
+                              {game.status === 'lobby' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => onNavigate({
+                                    type: 'game-lobby',
+                                    gameId: game.id,
+                                    roomCode: game.roomCode,
+                                    isHost: true
+                                  })}
+                                  className="bg-quiz-green text-white hover:bg-green-600"
+                                >
+                                  <Play className="w-3 h-3 mr-1" />
+                                  Resume
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <History className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <h4 className="text-lg font-semibold text-gray-600 mb-2">No games yet</h4>
+                      <p className="text-gray-500 mb-4">Create your first quiz game to get started</p>
+                      <Button
+                        onClick={() => {
+                          const createTab = document.querySelector('[value="create"]') as HTMLElement;
+                          createTab?.click();
+                        }}
+                        className="bg-quiz-purple text-white hover:bg-purple-600"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create New Game
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </Card>
         </div>
       </section>

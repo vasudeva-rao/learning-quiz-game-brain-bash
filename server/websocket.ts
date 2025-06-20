@@ -107,7 +107,7 @@ class GameWebSocketServer {
 
     this.socketToPlayer.set(ws, { playerId, roomCode });
 
-    // Send current game state
+    // Send current game state to all players in the room
     const players = await storage.getPlayersByGameId(game.id);
     this.broadcastToRoom(roomCode, {
       type: 'game_state',
@@ -115,6 +115,16 @@ class GameWebSocketServer {
         game,
         players,
         status: game.status,
+      },
+    });
+
+    // Send confirmation to the joining player
+    this.sendMessage(ws, {
+      type: 'joined_game',
+      payload: {
+        game,
+        players,
+        playerId,
       },
     });
   }
@@ -183,7 +193,7 @@ class GameWebSocketServer {
       return;
     }
 
-    const nextQuestionIndex = game.currentQuestionIndex + 1;
+    const nextQuestionIndex = (game.currentQuestionIndex ?? 0) + 1;
     const questions = await storage.getQuestionsByGameId(game.id);
     
     if (nextQuestionIndex >= questions.length) {
@@ -280,13 +290,12 @@ class GameWebSocketServer {
       questionId: question.id,
       selectedAnswerIndex: payload.answerIndex,
       timeToAnswer,
-      pointsEarned,
     });
 
     // Update player score
     const player = await storage.getPlayerById(playerId);
     if (player) {
-      await storage.updatePlayerScore(playerId, player.score + pointsEarned);
+      await storage.updatePlayerScore(playerId, (player.score ?? 0) + pointsEarned);
     }
 
     // Send confirmation to player
@@ -338,7 +347,7 @@ class GameWebSocketServer {
           correctAnswerIndex: question.correctAnswerIndex,
         },
         answerBreakdown,
-        players: players.sort((a, b) => b.score - a.score),
+        players: players.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)),
       },
     });
 
