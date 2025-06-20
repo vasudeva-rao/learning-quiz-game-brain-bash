@@ -20,12 +20,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const game = await storage.createGame({ ...gameData, hostId });
       
       // Create host as player
-      await storage.createPlayer({
+      const hostPlayer = await storage.createPlayer({
         gameId: game.id,
         name: "Host",
         avatar: "🎯",
-        isHost: true,
       });
+      
+      // Update host player to be marked as host
+      await storage.updatePlayerAsHost(hostPlayer.id);
       
       res.json(game);
     } catch (error) {

@@ -9,7 +9,7 @@ export interface IStorage {
   updateCurrentQuestion(gameId: number, questionIndex: number): Promise<Game | undefined>;
   
   // Question operations
-  createQuestion(question: InsertQuestion & { gameId: number }): Promise<Question>;
+  createQuestion(question: InsertQuestion & { gameId: number; questionOrder: number }): Promise<Question>;
   getQuestionsByGameId(gameId: number): Promise<Question[]>;
   getQuestionById(id: number): Promise<Question | undefined>;
   
@@ -18,6 +18,7 @@ export interface IStorage {
   getPlayersByGameId(gameId: number): Promise<Player[]>;
   getPlayerById(id: number): Promise<Player | undefined>;
   updatePlayerScore(playerId: number, score: number): Promise<Player | undefined>;
+  updatePlayerAsHost(playerId: number): Promise<Player | undefined>;
   
   // Answer operations
   createPlayerAnswer(answer: InsertPlayerAnswer): Promise<PlayerAnswer>;
@@ -50,7 +51,11 @@ export class MemStorage implements IStorage {
     const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const game: Game = {
       id: this.currentGameId++,
-      ...gameData,
+      hostId: gameData.hostId,
+      title: gameData.title,
+      description: gameData.description || null,
+      timePerQuestion: gameData.timePerQuestion || 30,
+      pointsPerQuestion: gameData.pointsPerQuestion || 1000,
       roomCode,
       status: "lobby",
       currentQuestionIndex: 0,
@@ -88,7 +93,7 @@ export class MemStorage implements IStorage {
     return undefined;
   }
 
-  async createQuestion(questionData: InsertQuestion & { gameId: number }): Promise<Question> {
+  async createQuestion(questionData: InsertQuestion & { gameId: number; questionOrder: number }): Promise<Question> {
     const question: Question = {
       id: this.currentQuestionId++,
       ...questionData,
@@ -122,7 +127,7 @@ export class MemStorage implements IStorage {
   async getPlayersByGameId(gameId: number): Promise<Player[]> {
     return Array.from(this.players.values())
       .filter(player => player.gameId === gameId)
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   }
 
   async getPlayerById(id: number): Promise<Player | undefined> {
@@ -133,6 +138,16 @@ export class MemStorage implements IStorage {
     const player = this.players.get(playerId);
     if (player) {
       const updatedPlayer = { ...player, score };
+      this.players.set(playerId, updatedPlayer);
+      return updatedPlayer;
+    }
+    return undefined;
+  }
+
+  async updatePlayerAsHost(playerId: number): Promise<Player | undefined> {
+    const player = this.players.get(playerId);
+    if (player) {
+      const updatedPlayer = { ...player, isHost: true };
       this.players.set(playerId, updatedPlayer);
       return updatedPlayer;
     }
