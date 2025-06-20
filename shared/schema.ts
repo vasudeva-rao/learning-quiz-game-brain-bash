@@ -25,8 +25,10 @@ export const questions = pgTable("questions", {
   id: serial("id").primaryKey(),
   gameId: integer("game_id").notNull(),
   questionText: text("question_text").notNull(),
+  questionType: varchar("question_type", { length: 20 }).notNull().default("multiple_choice"), // multiple_choice, multi_select, true_false
   answers: jsonb("answers").notNull(), // Array of answer strings
-  correctAnswerIndex: integer("correct_answer_index").notNull(),
+  correctAnswerIndex: integer("correct_answer_index"), // For single correct answer
+  correctAnswerIndices: jsonb("correct_answer_indices"), // For multiple correct answers (array of indices)
   questionOrder: integer("question_order").notNull(),
 });
 

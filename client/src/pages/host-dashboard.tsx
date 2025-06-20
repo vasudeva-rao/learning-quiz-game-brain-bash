@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Plus, Edit, Trash2, Play, Save, RefreshCw, History, Users, HelpCircle, Calendar } from "lucide-react";
+import { X, Plus, Edit, Trash2, Play, Save, RefreshCw, History, Users, HelpCircle, Calendar, Palette, CheckSquare, Circle } from "lucide-react";
 import { GameState, QuestionData, ANSWER_COLORS, ANSWER_TEXT_COLORS } from "@/lib/game-types";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { useTheme } from "@/components/theme-provider";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface HostDashboardProps {
   gameState: GameState;
@@ -19,8 +21,10 @@ interface HostDashboardProps {
 
 interface Question {
   questionText: string;
+  questionType: 'multiple_choice' | 'multi_select' | 'true_false';
   answers: string[];
-  correctAnswerIndex: number;
+  correctAnswerIndex?: number;
+  correctAnswerIndices?: number[];
 }
 
 interface GameHistory {
@@ -36,6 +40,7 @@ interface GameHistory {
 
 export default function HostDashboard({ gameState, onNavigate }: HostDashboardProps) {
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [gameTitle, setGameTitle] = useState("");
   const [gameDescription, setGameDescription] = useState("");
   const [timePerQuestion, setTimePerQuestion] = useState("30");
@@ -51,8 +56,10 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
   const addQuestion = () => {
     setQuestions([...questions, {
       questionText: "",
+      questionType: "multiple_choice",
       answers: ["", "", "", ""],
       correctAnswerIndex: 0,
+      correctAnswerIndices: []
     }]);
   };
 
@@ -60,6 +67,23 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
     const updatedQuestions = [...questions];
     if (field === 'answers') {
       updatedQuestions[index].answers = value;
+    } else if (field === 'questionType') {
+      const question = updatedQuestions[index];
+      if (value === 'true_false') {
+        updatedQuestions[index] = { 
+          ...question, 
+          questionType: value,
+          answers: ['True', 'False'],
+          correctAnswerIndex: 0,
+          correctAnswerIndices: []
+        };
+      } else {
+        updatedQuestions[index] = { 
+          ...question, 
+          questionType: value,
+          answers: question.answers.length < 2 ? ['', ''] : question.answers
+        };
+      }
     } else {
       (updatedQuestions[index] as any)[field] = value;
     }
@@ -144,13 +168,28 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
           <Card className="p-8 shadow-2xl">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-3xl font-bold text-gray-800">Host Dashboard</h2>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => onNavigate({ type: 'home' })}
-              >
-                <X className="text-2xl" />
-              </Button>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-gray-600" />
+                  <Select value={theme} onValueChange={setTheme}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="original">Original</SelectItem>
+                      <SelectItem value="light">Light</SelectItem>
+                      <SelectItem value="dark">Dark</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => onNavigate({ type: 'home' })}
+                >
+                  <X className="text-2xl" />
+                </Button>
+              </div>
             </div>
 
             <Tabs defaultValue="create" className="w-full">
@@ -244,6 +283,39 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
                   </div>
                   
                   <div className="mb-4">
+                    <div className="flex gap-4 mb-3">
+                      <div className="flex-1">
+                        <Label className="text-sm font-semibold text-gray-600 mb-2">Question Type</Label>
+                        <Select 
+                          value={question.questionType} 
+                          onValueChange={(value) => updateQuestion(questionIndex, 'questionType', value)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="multiple_choice">
+                              <div className="flex items-center gap-2">
+                                <Circle className="w-4 h-4" />
+                                Multiple Choice
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="multi_select">
+                              <div className="flex items-center gap-2">
+                                <CheckSquare className="w-4 h-4" />
+                                Multi-Select
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="true_false">
+                              <div className="flex items-center gap-2">
+                                <HelpCircle className="w-4 h-4" />
+                                True/False
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                     <Textarea
                       placeholder="Enter your question..."
                       value={question.questionText}
@@ -266,22 +338,47 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
                   </div>
                   
                   <div>
-                    <Label className="text-sm font-semibold text-gray-600 mb-2">Correct Answer</Label>
-                    <Select 
-                      value={question.correctAnswerIndex.toString()} 
-                      onValueChange={(value) => updateQuestion(questionIndex, 'correctAnswerIndex', parseInt(value))}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
+                    <Label className="text-sm font-semibold text-gray-600 mb-2">
+                      {question.questionType === 'multi_select' ? 'Correct Answers (Multiple)' : 'Correct Answer'}
+                    </Label>
+                    {question.questionType === 'multi_select' ? (
+                      <div className="space-y-2">
                         {question.answers.map((answer, index) => (
-                          <SelectItem key={index} value={index.toString()}>
-                            {String.fromCharCode(65 + index)} - {answer || `Answer ${String.fromCharCode(65 + index)}`}
-                          </SelectItem>
+                          <div key={index} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`correct-${questionIndex}-${index}`}
+                              checked={(question.correctAnswerIndices || []).includes(index)}
+                              onCheckedChange={(checked) => {
+                                const currentIndices = question.correctAnswerIndices || [];
+                                const newIndices = checked 
+                                  ? [...currentIndices, index]
+                                  : currentIndices.filter(i => i !== index);
+                                updateQuestion(questionIndex, 'correctAnswerIndices', newIndices);
+                              }}
+                            />
+                            <Label htmlFor={`correct-${questionIndex}-${index}`} className="text-sm">
+                              {String.fromCharCode(65 + index)} - {answer || `Answer ${String.fromCharCode(65 + index)}`}
+                            </Label>
+                          </div>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                    ) : (
+                      <Select 
+                        value={(question.correctAnswerIndex ?? 0).toString()} 
+                        onValueChange={(value) => updateQuestion(questionIndex, 'correctAnswerIndex', parseInt(value))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {question.answers.map((answer, index) => (
+                            <SelectItem key={index} value={index.toString()}>
+                              {String.fromCharCode(65 + index)} - {answer || `Answer ${String.fromCharCode(65 + index)}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </Card>
               ))}

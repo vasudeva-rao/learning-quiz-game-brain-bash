@@ -103,7 +103,13 @@ export class MemStorage implements IStorage {
   async createQuestion(questionData: InsertQuestion & { gameId: number; questionOrder: number }): Promise<Question> {
     const question: Question = {
       id: this.currentQuestionId++,
-      ...questionData,
+      gameId: questionData.gameId,
+      questionText: questionData.questionText,
+      questionType: (questionData.questionType as string) || 'multiple_choice',
+      answers: questionData.answers,
+      correctAnswerIndex: questionData.correctAnswerIndex || null,
+      correctAnswerIndices: questionData.correctAnswerIndices || null,
+      questionOrder: questionData.questionOrder,
     };
     this.questions.set(question.id, question);
     return question;

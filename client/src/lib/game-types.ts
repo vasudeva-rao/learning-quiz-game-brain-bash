@@ -14,8 +14,10 @@ export interface WebSocketMessage {
 export interface QuestionData {
   id: number;
   questionText: string;
+  questionType: 'multiple_choice' | 'multi_select' | 'true_false';
   answers: string[];
   correctAnswerIndex?: number;
+  correctAnswerIndices?: number[];
   questionOrder: number;
 }
 
