@@ -1,8 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { GameWebSocketServer } from "./websocket";
-import { insertGameSchema, insertQuestionSchema, insertPlayerSchema } from "@shared/schema";
-import { z } from "zod";
+import type { InsertGame, InsertQuestion, InsertPlayer } from "@shared/schema";
 import type { IStorage } from "./storage";
 
 export async function registerRoutes(app: Express, storage: IStorage): Promise<Server> {
@@ -14,7 +13,7 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
   // Create a new game
   app.post("/api/games", async (req, res) => {
     try {
-      const gameData = insertGameSchema.parse(req.body);
+      const gameData: InsertGame = req.body;
       // Create game first (without hostId)
       const game = await storage.createGame({ ...gameData, hostId: "" });
       // Create host as player
@@ -60,7 +59,7 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
   app.post("/api/games/:gameId/questions", async (req, res) => {
     try {
       const gameId = req.params.gameId;
-      const questionsData = z.array(insertQuestionSchema).parse(req.body);
+      const questionsData: InsertQuestion[] = req.body;
       
       const questions = [];
       for (let i = 0; i < questionsData.length; i++) {
@@ -83,7 +82,7 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
   app.post("/api/games/:roomCode/join", async (req, res) => {
     try {
       const { roomCode } = req.params;
-      const playerData = insertPlayerSchema.parse(req.body);
+      const playerData: InsertPlayer = req.body;
       
       const game = await storage.getGameByRoomCode(roomCode);
       if (!game) {

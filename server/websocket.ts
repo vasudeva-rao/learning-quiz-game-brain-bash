@@ -198,11 +198,11 @@ class GameWebSocketServer {
     const { roomCode } = payload;
     let room = this.rooms.get(roomCode);
 
-    // If room doesn't exist, try to reconstruct it from the DB
     if (!room) {
       const game = await this.storage.getGameByRoomCode(roomCode);
       if (!game) {
-        this.sendError(ws, 'Game not found');
+        console.error('[handleStartGame] No game found for roomCode:', roomCode);
+        this.sendError(ws, 'Game not found (no game for roomCode)');
         return;
       }
       room = {
@@ -214,22 +214,23 @@ class GameWebSocketServer {
       };
       this.rooms.set(roomCode, room);
     } else {
-      // Always update the gameId from the DB in case it changed
       const game = await this.storage.getGameByRoomCode(roomCode);
       if (game) {
         room.gameId = game.id;
       }
     }
 
-    // If hostSocket doesn't match, update it (host is always allowed to start)
     if (room.hostSocket !== ws) {
       room.hostSocket = ws;
     }
 
-    // Double-check the game exists
+    // Add debug log here
+    console.log('[handleStartGame] roomCode:', roomCode, 'room.gameId:', room.gameId);
+
     const game = await this.storage.updateGameStatus(room.gameId, 'active');
     if (!game) {
-      this.sendError(ws, 'Game not found');
+      console.error('[handleStartGame] updateGameStatus failed for gameId:', room.gameId);
+      this.sendError(ws, 'Game not found (updateGameStatus failed)');
       return;
     }
 

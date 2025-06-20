@@ -1,93 +1,86 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+// Schema definitions for Brain-Bash quiz game (no drizzle, no zod)
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
+export interface Game {
+  id: string;
+  hostId: string;
+  title: string;
+  description?: string;
+  roomCode: string;
+  timePerQuestion: number;
+  pointsPerQuestion: number;
+  status: string; // lobby, active, completed
+  currentQuestionIndex: number;
+  createdAt: Date | string;
+}
 
-export const games = pgTable("games", {
-  id: serial("id").primaryKey(),
-  hostId: integer("host_id").notNull(),
-  title: text("title").notNull(),
-  description: text("description"),
-  roomCode: varchar("room_code", { length: 6 }).notNull().unique(),
-  timePerQuestion: integer("time_per_question").notNull().default(30),
-  pointsPerQuestion: integer("points_per_question").notNull().default(1000),
-  status: text("status").notNull().default("lobby"), // lobby, active, completed
-  currentQuestionIndex: integer("current_question_index").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export interface InsertGame {
+  title: string;
+  description?: string;
+  timePerQuestion: number;
+  pointsPerQuestion: number;
+}
 
-export const questions = pgTable("questions", {
-  id: serial("id").primaryKey(),
-  gameId: integer("game_id").notNull(),
-  questionText: text("question_text").notNull(),
-  questionType: varchar("question_type", { length: 20 }).notNull().default("multiple_choice"), // multiple_choice, multi_select, true_false
-  answers: jsonb("answers").notNull(), // Array of answer strings
-  correctAnswerIndex: integer("correct_answer_index"), // For single correct answer
-  correctAnswerIndices: jsonb("correct_answer_indices"), // For multiple correct answers (array of indices)
-  questionOrder: integer("question_order").notNull(),
-});
+export interface Question {
+  id: string;
+  gameId: string;
+  questionText: string;
+  questionType: string; // multiple_choice, multi_select, true_false
+  answers: string[];
+  correctAnswerIndex?: number;
+  correctAnswerIndices?: number[];
+  questionOrder: number;
+}
 
-export const players = pgTable("players", {
-  id: serial("id").primaryKey(),
-  gameId: integer("game_id").notNull(),
-  name: text("name").notNull(),
-  avatar: text("avatar").notNull(),
-  score: integer("score").default(0),
-  joinedAt: timestamp("joined_at").defaultNow(),
-  isHost: boolean("is_host").default(false),
-});
+export interface InsertQuestion {
+  gameId: string;
+  questionText: string;
+  questionType: string;
+  answers: string[];
+  correctAnswerIndex?: number;
+  correctAnswerIndices?: number[];
+  questionOrder: number;
+}
 
-export const playerAnswers = pgTable("player_answers", {
-  id: serial("id").primaryKey(),
-  playerId: integer("player_id").notNull(),
-  questionId: integer("question_id").notNull(),
-  selectedAnswerIndex: integer("selected_answer_index").notNull(),
-  answeredAt: timestamp("answered_at").defaultNow(),
-  timeToAnswer: integer("time_to_answer").notNull(), // milliseconds
-  pointsEarned: integer("points_earned").default(0),
-});
+export interface Player {
+  id: string;
+  gameId: string;
+  name: string;
+  avatar: string;
+  score: number;
+  joinedAt: Date | string;
+  isHost: boolean;
+}
 
-export const insertGameSchema = createInsertSchema(games).omit({
-  id: true,
-  hostId: true,
-  roomCode: true,
-  status: true,
-  currentQuestionIndex: true,
-  createdAt: true,
-});
+export interface InsertPlayer {
+  gameId: string;
+  name: string;
+  avatar: string;
+}
 
-export const insertQuestionSchema = createInsertSchema(questions).omit({
-  id: true,
-  gameId: true,
-  questionOrder: true,
-});
+export interface PlayerAnswer {
+  id: string;
+  playerId: string;
+  questionId: string;
+  selectedAnswerIndex: number;
+  answeredAt: Date | string;
+  timeToAnswer: number;
+  pointsEarned: number;
+}
 
-export const insertPlayerSchema = createInsertSchema(players).omit({
-  id: true,
-  gameId: true,
-  score: true,
-  joinedAt: true,
-  isHost: true,
-});
+export interface InsertPlayerAnswer {
+  playerId: string;
+  questionId: string;
+  selectedAnswerIndex: number;
+  timeToAnswer: number;
+}
 
-export const insertPlayerAnswerSchema = createInsertSchema(playerAnswers).omit({
-  id: true,
-  answeredAt: true,
-  pointsEarned: true,
-});
+export interface User {
+  id: string;
+  username: string;
+  password: string;
+}
 
-export type Game = Omit<typeof games.$inferSelect, 'id' | 'hostId'> & { id: string, hostId: string };
-export type InsertGame = Omit<z.infer<typeof insertGameSchema>, 'id'> & { id?: string };
-export type Question = Omit<typeof questions.$inferSelect, 'id' | 'gameId'> & { id: string, gameId: string };
-export type InsertQuestion = Omit<z.infer<typeof insertQuestionSchema>, 'id' | 'gameId'> & { id?: string, gameId: string };
-export type Player = Omit<typeof players.$inferSelect, 'id' | 'gameId'> & { id: string, gameId: string };
-export type InsertPlayer = Omit<z.infer<typeof insertPlayerSchema>, 'id' | 'gameId'> & { id?: string, gameId: string };
-export type PlayerAnswer = Omit<typeof playerAnswers.$inferSelect, 'id' | 'playerId' | 'questionId'> & { id: string, playerId: string, questionId: string };
-export type InsertPlayerAnswer = Omit<z.infer<typeof insertPlayerAnswerSchema>, 'id' | 'playerId' | 'questionId'> & { id?: string, playerId: string, questionId: string };
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferSelect;
+export interface InsertUser {
+  username: string;
+  password: string;
+}
