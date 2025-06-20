@@ -16,17 +16,27 @@ class GameWebSocketServer {
   private socketToPlayer: Map<WebSocket, { playerId: number; roomCode: string }> = new Map();
 
   constructor(server: Server) {
-    this.wss = new WebSocketServer({ server, path: '/ws' });
+    this.wss = new WebSocketServer({ 
+      server, 
+      path: '/ws',
+      perMessageDeflate: false,
+      maxPayload: 16 * 1024 * 1024
+    });
     this.setupEventHandlers();
+    console.log('WebSocket server initialized on path /ws');
   }
 
   private setupEventHandlers() {
     this.wss.on('connection', (ws: WebSocket) => {
       console.log('WebSocket connection established');
+      
+      // Send initial connection confirmation
+      this.sendMessage(ws, { type: 'connection_established' });
 
       ws.on('message', async (data: Buffer) => {
         try {
           const message = JSON.parse(data.toString());
+          console.log('Received WebSocket message:', message.type);
           await this.handleMessage(ws, message);
         } catch (error) {
           console.error('Error handling WebSocket message:', error);
@@ -34,7 +44,8 @@ class GameWebSocketServer {
         }
       });
 
-      ws.on('close', () => {
+      ws.on('close', (code, reason) => {
+        console.log('WebSocket connection closed:', code, reason.toString());
         this.handleDisconnection(ws);
       });
 
@@ -400,11 +411,16 @@ class GameWebSocketServer {
 
   private sendMessage(ws: WebSocket, message: any) {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(message));
+      try {
+        ws.send(JSON.stringify(message));
+      } catch (error) {
+        console.error('Error sending WebSocket message:', error);
+      }
     }
   }
 
   private sendError(ws: WebSocket, error: string) {
+    console.error('WebSocket error being sent:', error);
     this.sendMessage(ws, { type: 'error', payload: { error } });
   }
 }

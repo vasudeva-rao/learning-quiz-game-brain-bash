@@ -32,7 +32,28 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
 
   const { connect, sendMessage, isConnected, connectionState } = useWebSocket({
     onMessage: (message: WebSocketMessage) => {
+      console.log('Received WebSocket message:', message.type);
       switch (message.type) {
+        case 'connection_established':
+          // Send join/host message after connection is confirmed
+          if (gameState.isHost) {
+            sendMessage({
+              type: 'host_game',
+              payload: {
+                gameId: gameState.gameId,
+                hostId: gameState.playerId || 1,
+              },
+            });
+          } else {
+            sendMessage({
+              type: 'join_game',
+              payload: {
+                roomCode: gameState.roomCode,
+                playerId: gameState.playerId,
+              },
+            });
+          }
+          break;
         case 'game_state':
           setGame(message.payload.game);
           setPlayers(message.payload.players);
@@ -54,26 +75,6 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
             variant: "destructive",
           });
           break;
-      }
-    },
-    onOpen: () => {
-      // Join the game room
-      if (gameState.isHost) {
-        sendMessage({
-          type: 'host_game',
-          payload: {
-            gameId: gameState.gameId,
-            hostId: gameState.playerId || 1,
-          },
-        });
-      } else {
-        sendMessage({
-          type: 'join_game',
-          payload: {
-            roomCode: gameState.roomCode,
-            playerId: gameState.playerId,
-          },
-        });
       }
     },
   });
