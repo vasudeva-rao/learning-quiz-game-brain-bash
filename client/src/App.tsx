@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useState } from "react";
 import { GameState } from "@/lib/game-types";
+import { WebSocketProvider } from "@/hooks/use-websocket";
 
 import Home from "@/pages/home";
 import HostDashboard from "@/pages/host-dashboard";
@@ -51,8 +52,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <Toaster />
-          <Router />
+          <WebSocketProvider>
+            <Toaster />
+            <Router />
+          </WebSocketProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

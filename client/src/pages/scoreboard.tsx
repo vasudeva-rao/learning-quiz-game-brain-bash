@@ -14,8 +14,10 @@ export default function Scoreboard({ gameState, onNavigate }: ScoreboardProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
 
-  const { connect, sendMessage, isConnected } = useWebSocket({
-    onMessage: (message: WebSocketMessage) => {
+  const { connect, sendMessage, isConnected, addMessageHandler, removeMessageHandler } = useWebSocket();
+
+  useEffect(() => {
+    const handler = (message: WebSocketMessage) => {
       switch (message.type) {
         case 'question_ended':
           setPlayers(message.payload.players);
@@ -27,8 +29,10 @@ export default function Scoreboard({ gameState, onNavigate }: ScoreboardProps) {
           onNavigate({ type: 'final-results' });
           break;
       }
-    },
-  });
+    };
+    addMessageHandler(handler);
+    return () => removeMessageHandler(handler);
+  }, [addMessageHandler, removeMessageHandler, onNavigate]);
 
   useEffect(() => {
     connect();

@@ -22,8 +22,10 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
   const [answeredCount, setAnsweredCount] = useState(0);
   const [totalPlayers, setTotalPlayers] = useState(0);
 
-  const { connect, sendMessage, isConnected } = useWebSocket({
-    onMessage: (message: WebSocketMessage) => {
+  const { connect, sendMessage, addMessageHandler, removeMessageHandler } = useWebSocket();
+
+  useEffect(() => {
+    const handler = (message: WebSocketMessage) => {
       switch (message.type) {
         case 'question_started':
           setCurrentQuestion({
@@ -31,6 +33,7 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
             questionText: message.payload.question.questionText,
             answers: message.payload.question.answers,
             questionOrder: message.payload.question.questionOrder,
+            questionType: message.payload.question.questionType,
           });
           setTimeLimit(Math.floor(message.payload.timeLimit / 1000));
           setTimeLeft(Math.floor(message.payload.timeLimit / 1000));
@@ -60,8 +63,10 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
           });
           break;
       }
-    },
-  });
+    };
+    addMessageHandler(handler);
+    return () => removeMessageHandler(handler);
+  }, [addMessageHandler, removeMessageHandler, onNavigate, toast]);
 
   useEffect(() => {
     connect();

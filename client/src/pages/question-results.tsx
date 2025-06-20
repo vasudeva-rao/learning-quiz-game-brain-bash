@@ -19,8 +19,10 @@ export default function QuestionResults({ gameState, onNavigate }: QuestionResul
   const [answerBreakdown, setAnswerBreakdown] = useState<AnswerBreakdown[]>([]);
   const [players, setPlayers] = useState<PlayerData[]>([]);
 
-  const { connect, sendMessage, isConnected } = useWebSocket({
-    onMessage: (message: WebSocketMessage) => {
+  const { connect, addMessageHandler, removeMessageHandler } = useWebSocket();
+
+  useEffect(() => {
+    const handler = (message: WebSocketMessage) => {
       switch (message.type) {
         case 'question_ended':
           setQuestion({
@@ -37,8 +39,10 @@ export default function QuestionResults({ gameState, onNavigate }: QuestionResul
           onNavigate({ type: 'final-results' });
           break;
       }
-    },
-  });
+    };
+    addMessageHandler(handler);
+    return () => removeMessageHandler(handler);
+  }, [addMessageHandler, removeMessageHandler, onNavigate]);
 
   useEffect(() => {
     connect();

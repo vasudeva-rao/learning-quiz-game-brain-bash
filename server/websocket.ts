@@ -1,11 +1,11 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
-import { storage } from './storage';
+import type { IStorage } from './storage';
 
 interface GameRoom {
-  gameId: number;
+  gameId: string;
   hostSocket: WebSocket | null;
-  playerSockets: Map<number, WebSocket>;
+  playerSockets: Map<string, WebSocket>;
   questionStartTime: number | null;
   questionTimer: NodeJS.Timeout | null;
 }
@@ -13,15 +13,17 @@ interface GameRoom {
 class GameWebSocketServer {
   private wss: WebSocketServer;
   private rooms: Map<string, GameRoom> = new Map();
-  private socketToPlayer: Map<WebSocket, { playerId: number; roomCode: string }> = new Map();
+  private socketToPlayer: Map<WebSocket, { playerId: string; roomCode: string }> = new Map();
+  private storage: IStorage;
 
-  constructor(server: Server) {
+  constructor(server: Server, storage: IStorage) {
     this.wss = new WebSocketServer({ 
       server, 
       path: '/ws',
       perMessageDeflate: false,
       maxPayload: 16 * 1024 * 1024
     });
+    this.storage = storage;
     this.setupEventHandlers();
     console.log('WebSocket server initialized on path /ws');
   }
@@ -82,16 +84,16 @@ class GameWebSocketServer {
     }
   }
 
-  private async handleJoinGame(ws: WebSocket, payload: { roomCode: string; playerId: number }) {
+  private async handleJoinGame(ws: WebSocket, payload: { roomCode: string; playerId: string }) {
     const { roomCode, playerId } = payload;
     
-    const game = await storage.getGameByRoomCode(roomCode);
+    const game = await this.storage.getGameByRoomCode(roomCode);
     if (!game) {
       this.sendError(ws, 'Game not found');
       return;
     }
 
-    const player = await storage.getPlayerById(playerId);
+    const player = await this.storage.getPlayerById(playerId);
     if (!player || player.gameId !== game.id) {
       this.sendError(ws, 'Player not found in this game');
       return;
@@ -108,9 +110,13 @@ class GameWebSocketServer {
         questionTimer: null,
       };
       this.rooms.set(roomCode, room);
+    } else {
+      // Always ensure the gameId is up to date (in case of reconnects)
+      room.gameId = game.id;
     }
 
     if (player.isHost) {
+      // Always set hostSocket to the latest host connection
       room.hostSocket = ws;
     } else {
       room.playerSockets.set(playerId, ws);
@@ -119,7 +125,7 @@ class GameWebSocketServer {
     this.socketToPlayer.set(ws, { playerId, roomCode });
 
     // Send current game state to all players in the room
-    const players = await storage.getPlayersByGameId(game.id);
+    const players = await this.storage.getPlayersByGameId(game.id);
     this.broadcastToRoom(roomCode, {
       type: 'game_state',
       payload: {
@@ -140,11 +146,17 @@ class GameWebSocketServer {
     });
   }
 
-  private async handleHostGame(ws: WebSocket, payload: { gameId: number; hostId: number }) {
+  private async handleHostGame(ws: WebSocket, payload: { gameId: string; hostId: string }) {
     const { gameId, hostId } = payload;
     
-    const game = await storage.getGameById(gameId);
-    if (!game || game.hostId !== hostId) {
+    const game = await this.storage.getGameById(gameId);
+    console.log('Comparing host IDs:', {
+      dbHostId: game?.hostId,
+      dbHostIdType: typeof game?.hostId,
+      clientHostId: hostId,
+      clientHostIdType: typeof hostId,
+    });
+    if (!game || String(game.hostId) !== String(hostId)) {
       this.sendError(ws, 'Unauthorized');
       return;
     }
@@ -165,6 +177,17 @@ class GameWebSocketServer {
     room.hostSocket = ws;
     this.socketToPlayer.set(ws, { playerId: hostId, roomCode });
 
+    // Broadcast current game state to all sockets in the room (including host)
+    const players = await this.storage.getPlayersByGameId(game.id);
+    this.broadcastToRoom(roomCode, {
+      type: 'game_state',
+      payload: {
+        game,
+        players,
+        status: game.status,
+      },
+    });
+
     this.sendMessage(ws, {
       type: 'host_connected',
       payload: { game },
@@ -180,7 +203,7 @@ class GameWebSocketServer {
       return;
     }
 
-    const game = await storage.updateGameStatus(room.gameId, 'active');
+    const game = await this.storage.updateGameStatus(room.gameId, 'active');
     if (!game) {
       this.sendError(ws, 'Game not found');
       return;
@@ -198,18 +221,18 @@ class GameWebSocketServer {
       return;
     }
 
-    const game = await storage.getGameById(room.gameId);
+    const game = await this.storage.getGameById(room.gameId);
     if (!game) {
       this.sendError(ws, 'Game not found');
       return;
     }
 
     const nextQuestionIndex = (game.currentQuestionIndex ?? 0) + 1;
-    const questions = await storage.getQuestionsByGameId(game.id);
+    const questions = await this.storage.getQuestionsByGameId(game.id);
     
     if (nextQuestionIndex >= questions.length) {
       // Game completed
-      await storage.updateGameStatus(room.gameId, 'completed');
+      await this.storage.updateGameStatus(room.gameId, 'completed');
       this.broadcastToRoom(roomCode, {
         type: 'game_completed',
         payload: {},
@@ -224,10 +247,10 @@ class GameWebSocketServer {
     const room = this.rooms.get(roomCode);
     if (!room) return;
 
-    const game = await storage.updateCurrentQuestion(room.gameId, questionIndex);
+    const game = await this.storage.updateCurrentQuestion(room.gameId, questionIndex);
     if (!game) return;
 
-    const questions = await storage.getQuestionsByGameId(game.id);
+    const questions = await this.storage.getQuestionsByGameId(game.id);
     const currentQuestion = questions[questionIndex];
     
     if (!currentQuestion) return;
@@ -261,7 +284,7 @@ class GameWebSocketServer {
     }, game.timePerQuestion * 1000);
   }
 
-  private async handleSubmitAnswer(ws: WebSocket, payload: { questionId: number; answerIndex: number }) {
+  private async handleSubmitAnswer(ws: WebSocket, payload: { questionId: string; answerIndex: number }) {
     const playerInfo = this.socketToPlayer.get(ws);
     if (!playerInfo) {
       this.sendError(ws, 'Player not found');
@@ -275,7 +298,7 @@ class GameWebSocketServer {
       return;
     }
 
-    const question = await storage.getQuestionById(payload.questionId);
+    const question = await this.storage.getQuestionById(payload.questionId);
     if (!question) {
       this.sendError(ws, 'Question not found');
       return;
@@ -285,7 +308,7 @@ class GameWebSocketServer {
     const isCorrect = payload.answerIndex === question.correctAnswerIndex;
     
     // Calculate points (base points + speed bonus)
-    const game = await storage.getGameById(room.gameId);
+    const game = await this.storage.getGameById(room.gameId);
     if (!game) return;
 
     let pointsEarned = 0;
@@ -296,7 +319,7 @@ class GameWebSocketServer {
     }
 
     // Save answer
-    await storage.createPlayerAnswer({
+    await this.storage.createPlayerAnswer({
       playerId,
       questionId: question.id,
       selectedAnswerIndex: payload.answerIndex,
@@ -304,9 +327,9 @@ class GameWebSocketServer {
     });
 
     // Update player score
-    const player = await storage.getPlayerById(playerId);
+    const player = await this.storage.getPlayerById(playerId);
     if (player) {
-      await storage.updatePlayerScore(playerId, (player.score ?? 0) + pointsEarned);
+      await this.storage.updatePlayerScore(playerId, (player.score ?? 0) + pointsEarned);
     }
 
     // Send confirmation to player
@@ -320,8 +343,8 @@ class GameWebSocketServer {
     });
 
     // Check if all players have answered
-    const players = await storage.getPlayersByGameId(room.gameId);
-    const answers = await storage.getPlayerAnswersByQuestionId(question.id);
+    const players = await this.storage.getPlayersByGameId(room.gameId);
+    const answers = await this.storage.getPlayerAnswersByQuestionId(question.id);
     
     if (answers.length >= players.filter(p => !p.isHost).length) {
       // All players answered, end question early
@@ -332,15 +355,15 @@ class GameWebSocketServer {
     }
   }
 
-  private async endQuestion(roomCode: string, questionId: number) {
+  private async endQuestion(roomCode: string, questionId: string) {
     const room = this.rooms.get(roomCode);
     if (!room) return;
 
-    const question = await storage.getQuestionById(questionId);
+    const question = await this.storage.getQuestionById(questionId);
     if (!question) return;
 
-    const answers = await storage.getPlayerAnswersByQuestionId(questionId);
-    const players = await storage.getPlayersByGameId(room.gameId);
+    const answers = await this.storage.getPlayerAnswersByQuestionId(questionId);
+    const players = await this.storage.getPlayersByGameId(room.gameId);
 
     // Calculate answer breakdown
     const answerBreakdown = Array.from({ length: (question.answers as string[]).length }, (_, i) => ({

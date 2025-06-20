@@ -138,6 +138,11 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
       // Add questions
       await apiRequest("POST", `/api/games/${game.id}/questions`, questions);
 
+      // Fetch players to get the host player's id
+      const playersResponse = await apiRequest("GET", `/api/games/${game.id}/players`);
+      const players = await playersResponse.json();
+      const hostPlayer = players.find((p: any) => p.isHost);
+
       toast({
         title: "Game Created!",
         description: `Room code: ${game.roomCode}`,
@@ -147,6 +152,7 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
         type: 'game-lobby', 
         gameId: game.id, 
         roomCode: game.roomCode,
+        playerId: hostPlayer?.id,
         isHost: true 
       });
     } catch (error) {

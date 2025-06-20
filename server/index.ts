@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { createMongoStorage, MemStorage } from "./storage";
+import 'dotenv/config';
 
 const app = express();
 app.use(express.json());
@@ -37,7 +39,16 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  let storage;
+  const mongoUri = process.env.MONGODB_URI;
+  const dbName = process.env.MONGODB_DB || "quizgame";
+  if (mongoUri) {
+    storage = await createMongoStorage(mongoUri, dbName);
+  } else {
+    storage = new MemStorage();
+    log("Warning: Using in-memory storage. Set MONGODB_URI for production.");
+  }
+  const server = await registerRoutes(app, storage);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

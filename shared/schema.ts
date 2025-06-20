@@ -81,13 +81,13 @@ export const insertPlayerAnswerSchema = createInsertSchema(playerAnswers).omit({
   pointsEarned: true,
 });
 
-export type Game = typeof games.$inferSelect;
-export type InsertGame = z.infer<typeof insertGameSchema>;
-export type Question = typeof questions.$inferSelect;
-export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
-export type Player = typeof players.$inferSelect;
-export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
-export type PlayerAnswer = typeof playerAnswers.$inferSelect;
-export type InsertPlayerAnswer = z.infer<typeof insertPlayerAnswerSchema>;
+export type Game = Omit<typeof games.$inferSelect, 'id' | 'hostId'> & { id: string, hostId: string };
+export type InsertGame = Omit<z.infer<typeof insertGameSchema>, 'id'> & { id?: string };
+export type Question = Omit<typeof questions.$inferSelect, 'id' | 'gameId'> & { id: string, gameId: string };
+export type InsertQuestion = Omit<z.infer<typeof insertQuestionSchema>, 'id' | 'gameId'> & { id?: string, gameId: string };
+export type Player = Omit<typeof players.$inferSelect, 'id' | 'gameId'> & { id: string, gameId: string };
+export type InsertPlayer = Omit<z.infer<typeof insertPlayerSchema>, 'id' | 'gameId'> & { id?: string, gameId: string };
+export type PlayerAnswer = Omit<typeof playerAnswers.$inferSelect, 'id' | 'playerId' | 'questionId'> & { id: string, playerId: string, questionId: string };
+export type InsertPlayerAnswer = Omit<z.infer<typeof insertPlayerAnswerSchema>, 'id' | 'playerId' | 'questionId'> & { id?: string, playerId: string, questionId: string };
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferSelect;

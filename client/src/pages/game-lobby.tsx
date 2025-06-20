@@ -30,18 +30,41 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
     }
   }, [gameData]);
 
-  const { connect, sendMessage, isConnected, connectionState } = useWebSocket({
-    onMessage: (message: WebSocketMessage) => {
+  const { connect, sendMessage, isConnected, connectionState, addMessageHandler, removeMessageHandler } = useWebSocket();
+
+  useEffect(() => {
+    const handler = (message: WebSocketMessage) => {
       console.log('Received WebSocket message:', message.type);
       switch (message.type) {
         case 'connection_established':
           // Send join/host message after connection is confirmed
           if (gameState.isHost) {
+            if (!gameState.playerId) {
+              toast({
+                title: "Error",
+                description: "Host player ID is missing. Please refresh or recreate the game.",
+                variant: "destructive",
+              });
+              return;
+            }
+            console.log('Sending host_game:', {
+              gameId: gameState.gameId,
+              hostId: gameState.playerId,
+              type: typeof gameState.playerId,
+            });
             sendMessage({
               type: 'host_game',
               payload: {
-                gameId: gameState.gameId,
-                hostId: gameState.playerId || 1,
+                gameId: String(gameState.gameId),
+                hostId: String(gameState.playerId),
+              },
+            });
+            // Also join the room as a player (host)
+            sendMessage({
+              type: 'join_game',
+              payload: {
+                roomCode: gameState.roomCode,
+                playerId: String(gameState.playerId),
               },
             });
           } else {
@@ -76,8 +99,10 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
           });
           break;
       }
-    },
-  });
+    };
+    addMessageHandler(handler);
+    return () => removeMessageHandler(handler);
+  }, [addMessageHandler, removeMessageHandler, gameState, onNavigate, sendMessage, toast]);
 
   useEffect(() => {
     connect();

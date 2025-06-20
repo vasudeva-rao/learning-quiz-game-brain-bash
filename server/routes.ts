@@ -1,35 +1,35 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import { GameWebSocketServer } from "./websocket";
 import { insertGameSchema, insertQuestionSchema, insertPlayerSchema } from "@shared/schema";
 import { z } from "zod";
+import type { IStorage } from "./storage";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express, storage: IStorage): Promise<Server> {
   const httpServer = createServer(app);
   
-  // Initialize WebSocket server
-  new GameWebSocketServer(httpServer);
+  // Initialize WebSocket server with storage
+  new GameWebSocketServer(httpServer, storage);
 
   // Create a new game
   app.post("/api/games", async (req, res) => {
     try {
       const gameData = insertGameSchema.parse(req.body);
-      const hostId = 1; // TODO: Get from session/auth
-      
-      const game = await storage.createGame({ ...gameData, hostId });
-      
+      // Create game first (without hostId)
+      const game = await storage.createGame({ ...gameData, hostId: "" });
       // Create host as player
       const hostPlayer = await storage.createPlayer({
         gameId: game.id,
         name: "Host",
         avatar: "🎯",
       });
-      
       // Update host player to be marked as host
       await storage.updatePlayerAsHost(hostPlayer.id);
-      
-      res.json(game);
+      // Update the game to set hostId to the host player's id
+      await storage.updateGameHostId(game.id, hostPlayer.id);
+      // Fetch the updated game
+      const updatedGame = await storage.getGameById(game.id);
+      res.json(updatedGame);
     } catch (error) {
       console.error("Error creating game:", error);
       res.status(400).json({ error: "Failed to create game" });
@@ -59,7 +59,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add questions to a game
   app.post("/api/games/:gameId/questions", async (req, res) => {
     try {
-      const gameId = parseInt(req.params.gameId);
+      const gameId = req.params.gameId;
       const questionsData = z.array(insertQuestionSchema).parse(req.body);
       
       const questions = [];
@@ -109,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get players for a game
   app.get("/api/games/:gameId/players", async (req, res) => {
     try {
-      const gameId = parseInt(req.params.gameId);
+      const gameId = req.params.gameId;
       const players = await storage.getPlayersByGameId(gameId);
       res.json(players);
     } catch (error) {
@@ -121,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get questions for a game
   app.get("/api/games/:gameId/questions", async (req, res) => {
     try {
-      const gameId = parseInt(req.params.gameId);
+      const gameId = req.params.gameId;
       const questions = await storage.getQuestionsByGameId(gameId);
       res.json(questions);
     } catch (error) {

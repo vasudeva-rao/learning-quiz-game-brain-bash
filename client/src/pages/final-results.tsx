@@ -13,15 +13,19 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
   const [players, setPlayers] = useState<PlayerData[]>([]);
   const [winner, setWinner] = useState<PlayerData | null>(null);
 
-  const { connect } = useWebSocket({
-    onMessage: (message: WebSocketMessage) => {
+  const { connect, addMessageHandler, removeMessageHandler } = useWebSocket();
+
+  useEffect(() => {
+    const handler = (message: WebSocketMessage) => {
       switch (message.type) {
         case 'game_state':
           setPlayers(message.payload.players);
           break;
       }
-    },
-  });
+    };
+    addMessageHandler(handler);
+    return () => removeMessageHandler(handler);
+  }, [addMessageHandler, removeMessageHandler]);
 
   useEffect(() => {
     connect();
