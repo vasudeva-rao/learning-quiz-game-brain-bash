@@ -23,5 +23,15 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    proxy: {
+      '/ws': {
+        target: `http://localhost:${process.env.VITE_BACKEND_PORT || 5000}`,
+        ws: true,
+      },
+      '/api': {
+        target: `http://localhost:${process.env.VITE_BACKEND_PORT || 5000}`,
+        changeOrigin: true,
+      },
+    },
   },
 });

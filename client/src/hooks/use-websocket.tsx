@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useEffect, useRef, useCallback, useState, ReactNode } from 'react';
 import { WebSocketMessage } from '@/lib/game-types';
 
+// To configure the backend WebSocket connection in local development:
+// 1. Create a client/.env file with:
+//    VITE_BACKEND_HOST=localhost
+//    VITE_BACKEND_PORT=5000
+// 2. Restart Vite after changing .env files.
+// If not set, the client will default to window.location.host.
+
 interface WebSocketContextType {
   connect: () => void;
   disconnect: () => void;
@@ -28,7 +35,9 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
     }
     setConnectionState('connecting');
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const backendHost = import.meta.env.VITE_BACKEND_HOST || window.location.hostname;
+    const backendPort = import.meta.env.VITE_BACKEND_PORT || '5000';
+    const wsUrl = `${protocol}//${backendHost}:${backendPort}/ws`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.onopen = () => {

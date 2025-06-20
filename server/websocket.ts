@@ -196,13 +196,37 @@ class GameWebSocketServer {
 
   private async handleStartGame(ws: WebSocket, payload: { roomCode: string }) {
     const { roomCode } = payload;
-    const room = this.rooms.get(roomCode);
-    
-    if (!room || room.hostSocket !== ws) {
-      this.sendError(ws, 'Unauthorized');
-      return;
+    let room = this.rooms.get(roomCode);
+
+    // If room doesn't exist, try to reconstruct it from the DB
+    if (!room) {
+      const game = await this.storage.getGameByRoomCode(roomCode);
+      if (!game) {
+        this.sendError(ws, 'Game not found');
+        return;
+      }
+      room = {
+        gameId: game.id,
+        hostSocket: ws,
+        playerSockets: new Map(),
+        questionStartTime: null,
+        questionTimer: null,
+      };
+      this.rooms.set(roomCode, room);
+    } else {
+      // Always update the gameId from the DB in case it changed
+      const game = await this.storage.getGameByRoomCode(roomCode);
+      if (game) {
+        room.gameId = game.id;
+      }
     }
 
+    // If hostSocket doesn't match, update it (host is always allowed to start)
+    if (room.hostSocket !== ws) {
+      room.hostSocket = ws;
+    }
+
+    // Double-check the game exists
     const game = await this.storage.updateGameStatus(room.gameId, 'active');
     if (!game) {
       this.sendError(ws, 'Game not found');
