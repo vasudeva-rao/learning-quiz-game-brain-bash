@@ -1,0 +1,136 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { X, Users } from "lucide-react";
+import { GameState, AVATARS } from "@/lib/game-types";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+interface JoinGameProps {
+  gameState: GameState;
+  onNavigate: (state: Partial<GameState>) => void;
+}
+
+export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
+  const { toast } = useToast();
+  const [roomCode, setRoomCode] = useState("");
+  const [playerName, setPlayerName] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0]);
+  const [isJoining, setIsJoining] = useState(false);
+
+  const joinGame = async () => {
+    if (!roomCode.trim() || !playerName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter both room code and your name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsJoining(true);
+    try {
+      const response = await apiRequest("POST", `/api/games/${roomCode.toUpperCase()}/join`, {
+        name: playerName,
+        avatar: selectedAvatar,
+      });
+      
+      const { player, game } = await response.json();
+
+      toast({
+        title: "Joined Game!",
+        description: `Welcome to ${game.title}`,
+      });
+
+      onNavigate({ 
+        type: 'game-lobby', 
+        gameId: game.id, 
+        roomCode: game.roomCode,
+        playerId: player.id,
+        isHost: false 
+      });
+    } catch (error: any) {
+      console.error("Error joining game:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join game. Please check the room code and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] flex items-center justify-center px-4">
+      <div className="max-w-md mx-auto w-full">
+        <Card className="p-8 shadow-2xl text-center relative">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => onNavigate({ type: 'home' })}
+            className="absolute top-4 right-4"
+          >
+            <X className="text-xl" />
+          </Button>
+          
+          <div className="bg-quiz-green text-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Users className="text-3xl" />
+          </div>
+          
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">Join Game</h2>
+          <p className="text-gray-600 mb-8">Enter the room code to join the quiz</p>
+          
+          <div className="mb-6">
+            <Input
+              placeholder="Room Code (e.g., ABC123)"
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              className="text-center text-2xl font-bold uppercase tracking-widest border-2 focus:border-quiz-green"
+              maxLength={6}
+            />
+          </div>
+          
+          <div className="mb-6">
+            <Input
+              placeholder="Your Name"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              className="text-center text-lg border-2 focus:border-quiz-green"
+            />
+          </div>
+          
+          {/* Avatar Selection */}
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-700 mb-3">Choose Your Avatar</p>
+            <div className="grid grid-cols-4 gap-3">
+              {AVATARS.map((avatar, index) => (
+                <Button
+                  key={index}
+                  variant={selectedAvatar === avatar ? "default" : "outline"}
+                  className={`w-12 h-12 text-2xl p-0 ${
+                    selectedAvatar === avatar 
+                      ? "bg-quiz-green hover:bg-green-600" 
+                      : "hover:scale-110"
+                  } transition-transform`}
+                  onClick={() => setSelectedAvatar(avatar)}
+                >
+                  {avatar}
+                </Button>
+              ))}
+            </div>
+          </div>
+          
+          <Button 
+            onClick={joinGame}
+            disabled={isJoining}
+            className="bg-gradient-to-r from-[hsl(142,76%,36%)] to-[hsl(217,91%,60%)] text-white px-8 py-4 text-lg w-full hover:shadow-lg transition-shadow"
+          >
+            {isJoining ? "Joining..." : "Join Game"}
+          </Button>
+        </Card>
+      </div>
+    </div>
+  );
+}

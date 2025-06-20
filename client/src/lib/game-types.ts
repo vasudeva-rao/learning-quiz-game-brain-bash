@@ -1,0 +1,55 @@
+export interface GameState {
+  type: 'home' | 'host-dashboard' | 'join-game' | 'game-lobby' | 'gameplay' | 'question-results' | 'scoreboard' | 'final-results';
+  gameId?: number;
+  roomCode?: string;
+  playerId?: number;
+  isHost?: boolean;
+}
+
+export interface WebSocketMessage {
+  type: string;
+  payload: any;
+}
+
+export interface QuestionData {
+  id: number;
+  questionText: string;
+  answers: string[];
+  correctAnswerIndex?: number;
+  questionOrder: number;
+}
+
+export interface PlayerData {
+  id: number;
+  name: string;
+  avatar: string;
+  score: number;
+  isHost: boolean;
+}
+
+export interface GameData {
+  id: number;
+  title: string;
+  description?: string;
+  roomCode: string;
+  timePerQuestion: number;
+  pointsPerQuestion: number;
+  status: string;
+  currentQuestionIndex: number;
+}
+
+export const AVATARS = ['🐱', '🐶', '🦊', '🐸', '🐨', '🦁', '🐯', '🐼'];
+
+export const ANSWER_COLORS = [
+  'bg-quiz-red hover:bg-red-600',
+  'bg-quiz-blue hover:bg-blue-600', 
+  'bg-quiz-yellow hover:bg-yellow-600',
+  'bg-quiz-green hover:bg-green-600'
+];
+
+export const ANSWER_TEXT_COLORS = [
+  'text-quiz-red',
+  'text-quiz-blue',
+  'text-quiz-yellow', 
+  'text-quiz-green'
+];
