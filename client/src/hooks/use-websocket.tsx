@@ -45,14 +45,6 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
       setConnectionState('connected');
       reconnectAttempts.current = 0;
     };
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        messageHandlers.current.forEach((handler) => handler(message));
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
-    };
     ws.onclose = (event) => {
       setIsConnected(false);
       setConnectionState('disconnected');
@@ -69,6 +61,29 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
       setConnectionState('error');
     };
   }, []);
+
+  useEffect(() => {
+    if (!wsRef.current) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(event.data);
+        messageHandlers.current.forEach((handler) => handler(message));
+      } catch (error) {
+        console.error('Failed to parse WebSocket message:', error);
+      }
+    };
+
+    wsRef.current.onmessage = handleMessage;
+
+    // Clean up the onmessage handler when the component unmounts
+    // or the wsRef changes, to prevent memory leaks.
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.onmessage = null;
+      }
+    };
+  }, [wsRef.current]); // Re-run this effect if the WebSocket instance changes
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

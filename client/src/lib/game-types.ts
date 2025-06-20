@@ -1,9 +1,15 @@
 export interface GameState {
   type: 'home' | 'host-dashboard' | 'join-game' | 'game-lobby' | 'gameplay' | 'question-results' | 'scoreboard' | 'final-results';
   gameId?: number;
-  roomCode?: string;
+  gameCode?: string;
   playerId?: number;
   isHost?: boolean;
+  question?: QuestionData;
+  timeLimit?: number;
+  currentQuestionIndex?: number;
+  totalQuestions?: number;
+  answerBreakdown?: { answerIndex: number; count: number }[];
+  players?: PlayerData[];
 }
 
 export interface WebSocketMessage {
@@ -33,7 +39,7 @@ export interface GameData {
   id: number;
   title: string;
   description?: string;
-  roomCode: string;
+  gameCode: string;
   timePerQuestion: number;
   pointsPerQuestion: number;
   status: string;

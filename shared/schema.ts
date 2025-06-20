@@ -5,7 +5,7 @@ export interface Game {
   hostId: string;
   title: string;
   description?: string;
-  roomCode: string;
+  gameCode: string;
   timePerQuestion: number;
   pointsPerQuestion: number;
   status: string; // lobby, active, completed

@@ -1,8 +1,13 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { createMongoStorage, MemStorage } from "./storage";
+import { createMongoStorage } from "./storage";
 import 'dotenv/config';
+import { createServer } from "http";
+import { GameWebSocketServer } from "./websocket";
 
 const app = express();
 app.use(express.json());
@@ -38,17 +43,18 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  let storage;
-  const mongoUri = process.env.MONGODB_URI;
-  const dbName = process.env.MONGODB_DB || "quizgame";
-  if (mongoUri) {
-    storage = await createMongoStorage(mongoUri, dbName);
-  } else {
-    storage = new MemStorage();
-    log("Warning: Using in-memory storage. Set MONGODB_URI for production.");
+async function main() {
+  const mongoUri = process.env.MONGO_URI;
+  if (!mongoUri) {
+    throw new Error("MONGO_URI is not defined in .env file");
   }
-  const server = await registerRoutes(app, storage);
+
+  const storage = await createMongoStorage(mongoUri, "brain-bash");
+
+  const server = createServer(app);
+  new GameWebSocketServer(server, storage);
+
+  const serverRoutes = await registerRoutes(app, storage);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -62,7 +68,7 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    await setupVite(app, serverRoutes);
   } else {
     serveStatic(app);
   }
@@ -78,4 +84,6 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
   });
-})();
+}
+
+main();

@@ -44,7 +44,7 @@ export default function Scoreboard({ gameState, onNavigate }: ScoreboardProps) {
     sendMessage({
       type: 'next_question',
       payload: {
-        roomCode: gameState.roomCode,
+        gameCode: gameState.gameCode,
       },
     });
   };

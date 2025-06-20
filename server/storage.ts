@@ -1,398 +1,310 @@
-import { games, questions, players, playerAnswers, type Game, type Question, type Player, type PlayerAnswer, type InsertGame, type InsertQuestion, type InsertPlayer, type InsertPlayerAnswer } from "@shared/schema";
-import { MongoClient, Db, ObjectId } from "mongodb";
+import {
+  Game,
+  Question,
+  Player,
+  PlayerAnswer,
+  InsertGame,
+  InsertQuestion,
+  InsertPlayer,
+  InsertPlayerAnswer,
+} from "@shared/schema";
+import { MongoClient, Db, ObjectId, WithId, Collection } from "mongodb";
 
+// The IStorage interface defines the contract for all storage operations.
 export interface IStorage {
-  // Game operations
-  createGame(game: InsertGame & { hostId: number | string }): Promise<Game>;
-  getGameByRoomCode(roomCode: string): Promise<Game | undefined>;
+  createGame(game: InsertGame & { hostId: string }): Promise<Game>;
+  getGameByGameCode(gameCode: string): Promise<Game | undefined>;
   getGameById(id: string): Promise<Game | undefined>;
-  getGamesByHostId(hostId: number): Promise<Game[]>;
+  getGamesByHostId(hostId: string): Promise<Game[]>;
+  getGamesByIds(ids: string[]): Promise<Game[]>;
   updateGameStatus(gameId: string, status: string): Promise<Game | undefined>;
-  updateCurrentQuestion(gameId: string, questionIndex: number): Promise<Game | undefined>;
+  updateCurrentQuestion(
+    gameId: string,
+    questionIndex: number
+  ): Promise<Game | undefined>;
   updateGameHostId(gameId: string, hostId: string): Promise<Game | undefined>;
-  
-  // Question operations
-  createQuestion(question: InsertQuestion & { gameId: string; questionOrder: number }): Promise<Question>;
+  createQuestion(question: InsertQuestion): Promise<Question>;
   getQuestionsByGameId(gameId: string): Promise<Question[]>;
   getQuestionById(id: string): Promise<Question | undefined>;
-  
-  // Player operations
-  createPlayer(player: InsertPlayer & { gameId: string }): Promise<Player>;
+  createPlayer(player: InsertPlayer): Promise<Player>;
   getPlayersByGameId(gameId: string): Promise<Player[]>;
   getPlayerById(id: string): Promise<Player | undefined>;
   updatePlayerScore(playerId: string, score: number): Promise<Player | undefined>;
   updatePlayerAsHost(playerId: string): Promise<Player | undefined>;
-  
-  // Answer operations
   createPlayerAnswer(answer: InsertPlayerAnswer): Promise<PlayerAnswer>;
   getPlayerAnswersByQuestionId(questionId: string): Promise<PlayerAnswer[]>;
   getPlayerAnswersByPlayerId(playerId: string): Promise<PlayerAnswer[]>;
 }
 
-export class MemStorage implements IStorage {
-  private games: Map<string, Game>;
-  private questions: Map<string, Question>;
-  private players: Map<string, Player>;
-  private playerAnswers: Map<string, PlayerAnswer>;
-  private currentGameId: number;
-  private currentQuestionId: number;
-  private currentPlayerId: number;
-  private currentAnswerId: number;
+// Define types that represent the shape of documents in the database
+type DbGame = Omit<Game, "id" | "createdAt"> & { createdAt: Date };
+type DbQuestion = Omit<Question, "id">;
+type DbPlayer = Omit<Player, "id" | "joinedAt"> & { joinedAt: Date };
+type DbPlayerAnswer = Omit<PlayerAnswer, "id" | "answeredAt"> & {
+  answeredAt: Date;
+};
 
-  constructor() {
-    this.games = new Map();
-    this.questions = new Map();
-    this.players = new Map();
-    this.playerAnswers = new Map();
-    this.currentGameId = 1;
-    this.currentQuestionId = 1;
-    this.currentPlayerId = 1;
-    this.currentAnswerId = 1;
-  }
-
-  async createGame(gameData: InsertGame & { hostId: number | string }): Promise<Game> {
-    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const id = this.currentGameId.toString();
-    const game: Game = {
-      id,
-      hostId: String(gameData.hostId),
-      title: gameData.title,
-      description: gameData.description || null,
-      timePerQuestion: gameData.timePerQuestion || 30,
-      pointsPerQuestion: gameData.pointsPerQuestion || 1000,
-      roomCode,
-      status: "lobby",
-      currentQuestionIndex: 0,
-      createdAt: new Date(),
-    };
-    this.games.set(id, game);
-    this.currentGameId++;
-    return game;
-  }
-
-  async getGameByRoomCode(roomCode: string): Promise<Game | undefined> {
-    return Array.from(this.games.values()).find(game => game.roomCode === roomCode);
-  }
-
-  async getGameById(id: string): Promise<Game | undefined> {
-    return this.games.get(id);
-  }
-
-  async getGamesByHostId(hostId: number): Promise<Game[]> {
-    return Array.from(this.games.values())
-      .filter(game => game.hostId === hostId)
-      .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
-  }
-
-  async updateGameStatus(gameId: string, status: string): Promise<Game | undefined> {
-    const game = this.games.get(gameId);
-    if (game) {
-      const updatedGame = { ...game, status };
-      this.games.set(gameId, updatedGame);
-      return updatedGame;
-    }
-    return undefined;
-  }
-
-  async updateCurrentQuestion(gameId: string, questionIndex: number): Promise<Game | undefined> {
-    const game = this.games.get(gameId);
-    if (game) {
-      const updatedGame = { ...game, currentQuestionIndex: questionIndex };
-      this.games.set(gameId, updatedGame);
-      return updatedGame;
-    }
-    return undefined;
-  }
-
-  async updateGameHostId(gameId: string, hostId: string): Promise<Game | undefined> {
-    const game = this.games.get(gameId);
-    if (game) {
-      const updatedGame = { ...game, hostId: String(hostId) };
-      this.games.set(gameId, updatedGame);
-      return updatedGame;
-    }
-    return undefined;
-  }
-
-  async createQuestion(questionData: InsertQuestion & { gameId: string; questionOrder: number }): Promise<Question> {
-    const id = this.currentQuestionId.toString();
-    const question: Question = {
-      id,
-      gameId: questionData.gameId,
-      questionText: questionData.questionText,
-      questionType: (questionData.questionType as string) || 'multiple_choice',
-      answers: questionData.answers,
-      correctAnswerIndex: questionData.correctAnswerIndex || null,
-      correctAnswerIndices: questionData.correctAnswerIndices || null,
-      questionOrder: questionData.questionOrder,
-    };
-    this.questions.set(id, question);
-    this.currentQuestionId++;
-    return question;
-  }
-
-  async getQuestionsByGameId(gameId: string): Promise<Question[]> {
-    return Array.from(this.questions.values())
-      .filter(question => question.gameId === gameId)
-      .sort((a, b) => a.questionOrder - b.questionOrder);
-  }
-
-  async getQuestionById(id: string): Promise<Question | undefined> {
-    return this.questions.get(id);
-  }
-
-  async createPlayer(playerData: InsertPlayer & { gameId: string }): Promise<Player> {
-    const id = this.currentPlayerId.toString();
-    const player: Player = {
-      id,
-      ...playerData,
-      score: 0,
-      joinedAt: new Date(),
-      isHost: false,
-    };
-    this.players.set(id, player);
-    this.currentPlayerId++;
-    return player;
-  }
-
-  async getPlayersByGameId(gameId: string): Promise<Player[]> {
-    return Array.from(this.players.values())
-      .filter(player => player.gameId === gameId)
-      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  }
-
-  async getPlayerById(id: string): Promise<Player | undefined> {
-    return this.players.get(id);
-  }
-
-  async updatePlayerScore(playerId: string, score: number): Promise<Player | undefined> {
-    const player = this.players.get(playerId);
-    if (player) {
-      const updatedPlayer = { ...player, score };
-      this.players.set(playerId, updatedPlayer);
-      return updatedPlayer;
-    }
-    return undefined;
-  }
-
-  async updatePlayerAsHost(playerId: string): Promise<Player | undefined> {
-    const player = this.players.get(playerId);
-    if (player) {
-      const updatedPlayer = { ...player, isHost: true };
-      this.players.set(playerId, updatedPlayer);
-      return updatedPlayer;
-    }
-    return undefined;
-  }
-
-  async createPlayerAnswer(answer: InsertPlayerAnswer): Promise<PlayerAnswer> {
-    const id = this.currentAnswerId.toString();
-    const playerAnswer: PlayerAnswer = {
-      id,
-      ...answer,
-      answeredAt: new Date(),
-      pointsEarned: 0,
-    };
-    this.playerAnswers.set(id, playerAnswer);
-    this.currentAnswerId++;
-    return playerAnswer;
-  }
-
-  async getPlayerAnswersByQuestionId(questionId: string): Promise<PlayerAnswer[]> {
-    return Array.from(this.playerAnswers.values())
-      .filter(answer => answer.questionId === questionId);
-  }
-
-  async getPlayerAnswersByPlayerId(playerId: string): Promise<PlayerAnswer[]> {
-    return Array.from(this.playerAnswers.values())
-      .filter(answer => answer.playerId === playerId);
-  }
-}
-
+// MongoStorage provides a concrete implementation of IStorage using MongoDB.
 export class MongoStorage implements IStorage {
-  private db: Db;
+  private games: Collection<DbGame>;
+  private questions: Collection<DbQuestion>;
+  private players: Collection<DbPlayer>;
+  private playerAnswers: Collection<DbPlayerAnswer>;
+
   constructor(db: Db) {
-    this.db = db;
+    this.games = db.collection<DbGame>("games");
+    this.questions = db.collection<DbQuestion>("questions");
+    this.players = db.collection<DbPlayer>("players");
+    this.playerAnswers = db.collection<DbPlayerAnswer>("playerAnswers");
   }
 
-  async createGame(gameData: InsertGame & { hostId: number | string }): Promise<Game> {
-    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const doc = {
+  // --- Game Operations ---
+
+  async createGame(gameData: InsertGame & { hostId: string }): Promise<Game> {
+    const gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const docToInsert = {
       ...gameData,
-      roomCode,
-      status: "lobby",
+      gameCode,
+      status: "lobby" as const,
       currentQuestionIndex: 0,
       createdAt: new Date(),
     };
-    const result = await this.db.collection("games").insertOne(doc);
-    return { ...doc, id: result.insertedId.toString() } as Game;
+    const result = await this.games.insertOne(docToInsert);
+    const { _id, createdAt, ...rest } = {
+      ...docToInsert,
+      _id: result.insertedId,
+    };
+    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
   }
 
-  async getGameByRoomCode(roomCode: string): Promise<Game | undefined> {
-    const doc = await this.db.collection("games").findOne({ roomCode });
+  async getGameByGameCode(gameCode: string): Promise<Game | undefined> {
+    const doc = await this.games.findOne({ gameCode });
     if (!doc) return undefined;
-    const { _id, ...rest } = doc;
-    return { ...rest, id: _id.toString() } as Game;
+    const { _id, createdAt, ...rest } = doc;
+    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
   }
 
   async getGameById(id: string): Promise<Game | undefined> {
-    const _id = new ObjectId(id);
-    const doc = await this.db.collection("games").findOne({ _id });
+    if (!ObjectId.isValid(id)) return undefined;
+    const doc = await this.games.findOne({ _id: new ObjectId(id) as any });
     if (!doc) return undefined;
-    const { _id: docId, ...rest } = doc;
-    return { ...rest, id: docId.toString() } as Game;
+    const { _id, createdAt, ...rest } = doc;
+    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
   }
 
-  async getGamesByHostId(hostId: number): Promise<Game[]> {
-    const docs = await this.db.collection("games").find({ hostId }).sort({ createdAt: -1 }).toArray();
-    return docs.map(doc => {
-      const { _id, ...rest } = doc;
-      return { ...rest, id: _id.toString() } as Game;
+  async getGamesByHostId(hostId: string): Promise<Game[]> {
+    const docs = await this.games
+      .find({ hostId })
+      .sort({ createdAt: -1 })
+      .toArray();
+    return docs.map((doc) => {
+      const { _id, createdAt, ...rest } = doc;
+      return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
     });
   }
 
-  async updateGameStatus(gameId: string, status: string): Promise<Game | undefined> {
-    const _id = new ObjectId(gameId);
-    const result = await this.db.collection("games").findOneAndUpdate(
-      { _id },
+  async getGamesByIds(ids: string[]): Promise<Game[]> {
+    const validIds = ids.filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+    const docs = await this.games
+      .find({ _id: { $in: validIds as any[] } })
+      .sort({ createdAt: -1 })
+      .toArray();
+    return docs.map((doc) => {
+      const { _id, createdAt, ...rest } = doc;
+      return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
+    });
+  }
+
+  async updateGameStatus(
+    gameId: string,
+    status: string
+  ): Promise<Game | undefined> {
+    if (!ObjectId.isValid(gameId)) return undefined;
+    const result = await this.games.findOneAndUpdate(
+      { _id: new ObjectId(gameId) as any },
       { $set: { status } },
       { returnDocument: "after" }
     );
-    if (!result || !result.value) return undefined;
-    const { _id: docId, ...rest } = result.value;
-    return { ...rest, id: docId.toString() } as Game;
+    if (!result) return undefined;
+    const { _id, createdAt, ...rest } = result;
+    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
   }
 
-  async updateCurrentQuestion(gameId: string, questionIndex: number): Promise<Game | undefined> {
-    const _id = new ObjectId(gameId);
-    const result = await this.db.collection("games").findOneAndUpdate(
-      { _id },
+  async updateCurrentQuestion(
+    gameId: string,
+    questionIndex: number
+  ): Promise<Game | undefined> {
+    if (!ObjectId.isValid(gameId)) return undefined;
+    const result = await this.games.findOneAndUpdate(
+      { _id: new ObjectId(gameId) as any },
       { $set: { currentQuestionIndex: questionIndex } },
       { returnDocument: "after" }
     );
-    if (!result || !result.value) return undefined;
-    const { _id: docId, ...rest } = result.value;
-    return { ...rest, id: docId.toString() } as Game;
+    if (!result) return undefined;
+    const { _id, createdAt, ...rest } = result;
+    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
   }
 
-  async updateGameHostId(gameId: string, hostId: string): Promise<Game | undefined> {
-    const _id = new ObjectId(gameId);
-    const result = await this.db.collection("games").findOneAndUpdate(
-      { _id },
+  async updateGameHostId(
+    gameId: string,
+    hostId: string
+  ): Promise<Game | undefined> {
+    if (!ObjectId.isValid(gameId)) return undefined;
+    const result = await this.games.findOneAndUpdate(
+      { _id: new ObjectId(gameId) as any },
       { $set: { hostId } },
       { returnDocument: "after" }
     );
-    if (!result || !result.value) return undefined;
-    const { _id: docId, ...rest } = result.value;
-    return { ...rest, id: docId.toString() } as Game;
+    if (!result) return undefined;
+    const { _id, createdAt, ...rest } = result;
+    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
   }
 
-  async createQuestion(questionData: InsertQuestion & { gameId: string; questionOrder: number }): Promise<Question> {
-    const doc = {
-      ...questionData,
-      gameId: questionData.gameId,
-      questionOrder: questionData.questionOrder,
-    };
-    const result = await this.db.collection("questions").insertOne(doc);
-    return { ...doc, id: result.insertedId.toString() } as Question;
+  // --- Question Operations ---
+
+  async createQuestion(questionData: InsertQuestion): Promise<Question> {
+    const result = await this.questions.insertOne(questionData);
+    const { _id, ...rest } = { ...questionData, _id: result.insertedId };
+    return { ...rest, id: _id.toString() };
   }
 
   async getQuestionsByGameId(gameId: string): Promise<Question[]> {
-    const docs = await this.db.collection("questions").find({ gameId }).sort({ questionOrder: 1 }).toArray();
-    return docs.map(doc => {
+    const docs = await this.questions
+      .find({ gameId })
+      .sort({ questionOrder: 1 })
+      .toArray();
+    return docs.map((doc) => {
       const { _id, ...rest } = doc;
-      return { ...rest, id: _id.toString(), gameId: rest.gameId } as Question;
+      return { ...rest, id: _id.toString() };
     });
   }
 
   async getQuestionById(id: string): Promise<Question | undefined> {
-    const _id = new ObjectId(id);
-    const doc = await this.db.collection("questions").findOne({ _id });
+    if (!ObjectId.isValid(id)) return undefined;
+    const doc = await this.questions.findOne({ _id: new ObjectId(id) as any });
     if (!doc) return undefined;
-    const { _id: docId, ...rest } = doc;
-    return { ...rest, id: docId.toString(), gameId: rest.gameId } as Question;
+    const { _id, ...rest } = doc;
+    return { ...rest, id: _id.toString() };
   }
 
-  async createPlayer(playerData: InsertPlayer & { gameId: string }): Promise<Player> {
-    const doc = {
+  // --- Player Operations ---
+
+  async createPlayer(playerData: InsertPlayer): Promise<Player> {
+    const docToInsert = {
       ...playerData,
-      gameId: playerData.gameId,
       score: 0,
       joinedAt: new Date(),
       isHost: false,
     };
-    const result = await this.db.collection("players").insertOne(doc);
-    return { ...doc, id: result.insertedId.toString(), gameId: doc.gameId } as Player;
+    const result = await this.players.insertOne(docToInsert);
+    const { _id, joinedAt, ...rest } = {
+      ...docToInsert,
+      _id: result.insertedId,
+    };
+    return { ...rest, id: _id.toString(), joinedAt: joinedAt.toISOString() };
   }
 
   async getPlayersByGameId(gameId: string): Promise<Player[]> {
-    const docs = await this.db.collection("players").find({ gameId }).sort({ score: -1 }).toArray();
-    return docs.map(doc => {
-      const { _id, ...rest } = doc;
-      return { ...rest, id: _id.toString(), gameId: rest.gameId } as Player;
+    const docs = await this.players
+      .find({ gameId })
+      .sort({ score: -1 })
+      .toArray();
+    return docs.map((doc) => {
+      const { _id, joinedAt, ...rest } = doc;
+      return { ...rest, id: _id.toString(), joinedAt: joinedAt.toISOString() };
     });
   }
 
   async getPlayerById(id: string): Promise<Player | undefined> {
-    const _id = new ObjectId(id);
-    const doc = await this.db.collection("players").findOne({ _id });
+    if (!ObjectId.isValid(id)) return undefined;
+    const doc = await this.players.findOne({ _id: new ObjectId(id) as any });
     if (!doc) return undefined;
-    const { _id: docId, ...rest } = doc;
-    return { ...rest, id: docId.toString(), gameId: rest.gameId } as Player;
+    const { _id, joinedAt, ...rest } = doc;
+    return { ...rest, id: _id.toString(), joinedAt: joinedAt.toISOString() };
   }
 
-  async updatePlayerScore(playerId: string, score: number): Promise<Player | undefined> {
-    const _id = new ObjectId(playerId);
-    const result = await this.db.collection("players").findOneAndUpdate(
-      { _id },
+  async updatePlayerScore(
+    playerId: string,
+    score: number
+  ): Promise<Player | undefined> {
+    if (!ObjectId.isValid(playerId)) return undefined;
+    const result = await this.players.findOneAndUpdate(
+      { _id: new ObjectId(playerId) as any },
       { $set: { score } },
       { returnDocument: "after" }
     );
-    if (!result || !result.value) return undefined;
-    return { ...result.value, id: result.value._id.toString(), gameId: result.value.gameId } as Player;
+    if (!result) return undefined;
+    const { _id, joinedAt, ...rest } = result;
+    return { ...rest, id: _id.toString(), joinedAt: joinedAt.toISOString() };
   }
 
   async updatePlayerAsHost(playerId: string): Promise<Player | undefined> {
-    const _id = new ObjectId(playerId);
-    const result = await this.db.collection("players").findOneAndUpdate(
-      { _id },
+    if (!ObjectId.isValid(playerId)) return undefined;
+    const result = await this.players.findOneAndUpdate(
+      { _id: new ObjectId(playerId) as any },
       { $set: { isHost: true } },
       { returnDocument: "after" }
     );
-    if (!result || !result.value) return undefined;
-    return { ...result.value, id: result.value._id.toString(), gameId: result.value.gameId } as Player;
+    if (!result) return undefined;
+    const { _id, joinedAt, ...rest } = result;
+    return { ...rest, id: _id.toString(), joinedAt: joinedAt.toISOString() };
   }
 
+  // --- Answer Operations ---
+
   async createPlayerAnswer(answer: InsertPlayerAnswer): Promise<PlayerAnswer> {
-    const doc = {
+    const docToInsert = {
       ...answer,
       answeredAt: new Date(),
       pointsEarned: 0,
     };
-    const result = await this.db.collection("playerAnswers").insertOne(doc);
-    return { ...doc, id: result.insertedId.toString(), playerId: doc.playerId, questionId: doc.questionId } as PlayerAnswer;
+    const result = await this.playerAnswers.insertOne(docToInsert);
+    const { _id, answeredAt, ...rest } = {
+      ...docToInsert,
+      _id: result.insertedId,
+    };
+    return { ...rest, id: _id.toString(), answeredAt: answeredAt.toISOString() };
   }
 
-  async getPlayerAnswersByQuestionId(questionId: string): Promise<PlayerAnswer[]> {
-    const docs = await this.db.collection("playerAnswers").find({ questionId }).toArray();
-    return docs.map(doc => {
-      const { _id, ...rest } = doc;
-      return { ...rest, id: _id.toString(), playerId: rest.playerId, questionId: rest.questionId } as PlayerAnswer;
+  async getPlayerAnswersByQuestionId(
+    questionId: string
+  ): Promise<PlayerAnswer[]> {
+    if (!ObjectId.isValid(questionId)) return [];
+    const docs = await this.playerAnswers.find({ questionId }).toArray();
+    return docs.map((doc) => {
+      const { _id, answeredAt, ...rest } = doc;
+      return {
+        ...rest,
+        id: _id.toString(),
+        answeredAt: answeredAt.toISOString(),
+      };
     });
   }
 
-  async getPlayerAnswersByPlayerId(playerId: string): Promise<PlayerAnswer[]> {
-    const docs = await this.db.collection("playerAnswers").find({ playerId }).toArray();
-    return docs.map(doc => {
-      const { _id, ...rest } = doc;
-      return { ...rest, id: _id.toString(), playerId: rest.playerId, questionId: rest.questionId } as PlayerAnswer;
+  async getPlayerAnswersByPlayerId(
+    playerId: string
+  ): Promise<PlayerAnswer[]> {
+    if (!ObjectId.isValid(playerId)) return [];
+    const docs = await this.playerAnswers.find({ playerId }).toArray();
+    return docs.map((doc) => {
+      const { _id, answeredAt, ...rest } = doc;
+      return {
+        ...rest,
+        id: _id.toString(),
+        answeredAt: answeredAt.toISOString(),
+      };
     });
   }
 }
 
-export async function createMongoStorage(mongoUri: string, dbName: string): Promise<MongoStorage> {
+// Factory function to create and connect a MongoStorage instance.
+export async function createMongoStorage(
+  mongoUri: string,
+  dbName: string
+): Promise<MongoStorage> {
   const client = new MongoClient(mongoUri);
   await client.connect();
   const db = client.db(dbName);
+  console.log("Successfully connected to MongoDB.");
   return new MongoStorage(db);
 }

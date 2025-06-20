@@ -19,7 +19,16 @@ export default function QuestionResults({ gameState, onNavigate }: QuestionResul
   const [answerBreakdown, setAnswerBreakdown] = useState<AnswerBreakdown[]>([]);
   const [players, setPlayers] = useState<PlayerData[]>([]);
 
-  const { connect, addMessageHandler, removeMessageHandler } = useWebSocket();
+  const { connect, sendMessage, addMessageHandler, removeMessageHandler } = useWebSocket();
+
+  useEffect(() => {
+    // Initialize with data passed from previous screen
+    if (gameState.question && gameState.answerBreakdown && gameState.players) {
+      setQuestion(gameState.question as any); // The 'as any' is a temporary workaround for the type
+      setAnswerBreakdown(gameState.answerBreakdown);
+      setPlayers(gameState.players);
+    }
+  }, []); // Run only once
 
   useEffect(() => {
     const handler = (message: WebSocketMessage) => {
@@ -33,10 +42,10 @@ export default function QuestionResults({ gameState, onNavigate }: QuestionResul
           setPlayers(message.payload.players);
           break;
         case 'question_started':
-          onNavigate({ type: 'gameplay' });
+          onNavigate({ type: 'gameplay', ...message.payload });
           break;
         case 'game_completed':
-          onNavigate({ type: 'final-results' });
+          onNavigate({ type: 'final-results', ...message.payload });
           break;
       }
     };
@@ -48,8 +57,11 @@ export default function QuestionResults({ gameState, onNavigate }: QuestionResul
     connect();
   }, [connect]);
 
-  const showScoreboard = () => {
-    onNavigate({ type: 'scoreboard' });
+  const nextQuestion = () => {
+    sendMessage({
+      type: 'next_question',
+      payload: { gameCode: gameState.gameCode },
+    });
   };
 
   const getAnswerColor = (index: number) => {
@@ -127,13 +139,17 @@ export default function QuestionResults({ gameState, onNavigate }: QuestionResul
         </div>
 
         {/* Next Button */}
-        <Button 
-          onClick={showScoreboard}
-          className="bg-white text-quiz-purple px-12 py-4 text-xl font-bold hover:shadow-lg transition-shadow"
-        >
-          <Trophy className="w-6 h-6 mr-3" />
-          View Scoreboard
-        </Button>
+        {gameState.isHost ? (
+          <Button 
+            onClick={nextQuestion}
+            className="bg-white text-quiz-purple px-12 py-4 text-xl font-bold hover:shadow-lg transition-shadow"
+          >
+            Next Question
+            <ArrowRight className="w-6 h-6 ml-3" />
+          </Button>
+        ) : (
+          <p className="text-white text-xl">Waiting for the host to continue...</p>
+        )}
       </div>
     </div>
   );

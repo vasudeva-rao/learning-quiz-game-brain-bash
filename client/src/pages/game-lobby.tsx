@@ -19,8 +19,8 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
 
   // Fetch initial game data
   const { data: gameData } = useQuery<{game: GameData, players: PlayerData[]}>({
-    queryKey: [`/api/games/${gameState.roomCode}`],
-    enabled: !!gameState.roomCode,
+    queryKey: [`/api/games/${gameState.gameCode}`],
+    enabled: !!gameState.gameCode,
   });
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
             sendMessage({
               type: 'join_game',
               payload: {
-                roomCode: gameState.roomCode,
+                gameCode: gameState.gameCode,
                 playerId: String(gameState.playerId),
               },
             });
@@ -71,7 +71,7 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
             sendMessage({
               type: 'join_game',
               payload: {
-                roomCode: gameState.roomCode,
+                gameCode: gameState.gameCode,
                 playerId: gameState.playerId,
               },
             });
@@ -89,7 +89,7 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
           setGame(message.payload.game);
           break;
         case 'question_started':
-          onNavigate({ type: 'gameplay' });
+          onNavigate({ type: 'gameplay', ...message.payload });
           break;
         case 'error':
           toast({
@@ -121,7 +121,7 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
     sendMessage({
       type: 'start_game',
       payload: {
-        roomCode: gameState.roomCode,
+        gameCode: gameState.gameCode,
       },
     });
   };
@@ -151,7 +151,7 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
           <Card className="p-8 shadow-2xl">
             <div className="text-center mb-8">
               <div className="bg-gradient-to-r from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] text-white px-6 py-3 rounded-full inline-block mb-4">
-                <span className="text-2xl font-bold">Room: {game.roomCode}</span>
+                <span className="text-2xl font-bold">Room: {game.gameCode}</span>
               </div>
               <h2 className="text-3xl font-bold text-gray-800 mb-2">{game.title}</h2>
               <p className="text-gray-600">

@@ -13,7 +13,7 @@ interface GameRoom {
 class GameWebSocketServer {
   private wss: WebSocketServer;
   private rooms: Map<string, GameRoom> = new Map();
-  private socketToPlayer: Map<WebSocket, { playerId: string; roomCode: string }> = new Map();
+  private socketToPlayer: Map<WebSocket, { playerId: string; gameCode: string }> = new Map();
   private storage: IStorage;
 
   constructor(server: Server, storage: IStorage) {
@@ -84,10 +84,10 @@ class GameWebSocketServer {
     }
   }
 
-  private async handleJoinGame(ws: WebSocket, payload: { roomCode: string; playerId: string }) {
-    const { roomCode, playerId } = payload;
+  private async handleJoinGame(ws: WebSocket, payload: { gameCode: string; playerId: string }) {
+    const { gameCode, playerId } = payload;
     
-    const game = await this.storage.getGameByRoomCode(roomCode);
+    const game = await this.storage.getGameByGameCode(gameCode);
     if (!game) {
       this.sendError(ws, 'Game not found');
       return;
@@ -100,7 +100,7 @@ class GameWebSocketServer {
     }
 
     // Add to room
-    let room = this.rooms.get(roomCode);
+    let room = this.rooms.get(gameCode);
     if (!room) {
       room = {
         gameId: game.id,
@@ -109,7 +109,7 @@ class GameWebSocketServer {
         questionStartTime: null,
         questionTimer: null,
       };
-      this.rooms.set(roomCode, room);
+      this.rooms.set(gameCode, room);
     } else {
       // Always ensure the gameId is up to date (in case of reconnects)
       room.gameId = game.id;
@@ -122,11 +122,11 @@ class GameWebSocketServer {
       room.playerSockets.set(playerId, ws);
     }
 
-    this.socketToPlayer.set(ws, { playerId, roomCode });
+    this.socketToPlayer.set(ws, { playerId, gameCode });
 
     // Send current game state to all players in the room
     const players = await this.storage.getPlayersByGameId(game.id);
-    this.broadcastToRoom(roomCode, {
+    this.broadcastToRoom(gameCode, {
       type: 'game_state',
       payload: {
         game,
@@ -161,8 +161,8 @@ class GameWebSocketServer {
       return;
     }
 
-    const roomCode = game.roomCode;
-    let room = this.rooms.get(roomCode);
+    const gameCode = game.gameCode;
+    let room = this.rooms.get(gameCode);
     if (!room) {
       room = {
         gameId: game.id,
@@ -171,15 +171,15 @@ class GameWebSocketServer {
         questionStartTime: null,
         questionTimer: null,
       };
-      this.rooms.set(roomCode, room);
+      this.rooms.set(gameCode, room);
     }
 
     room.hostSocket = ws;
-    this.socketToPlayer.set(ws, { playerId: hostId, roomCode });
+    this.socketToPlayer.set(ws, { playerId: hostId, gameCode });
 
     // Broadcast current game state to all sockets in the room (including host)
     const players = await this.storage.getPlayersByGameId(game.id);
-    this.broadcastToRoom(roomCode, {
+    this.broadcastToRoom(gameCode, {
       type: 'game_state',
       payload: {
         game,
@@ -194,52 +194,47 @@ class GameWebSocketServer {
     });
   }
 
-  private async handleStartGame(ws: WebSocket, payload: { roomCode: string }) {
-    const { roomCode } = payload;
-    let room = this.rooms.get(roomCode);
+  private async handleStartGame(ws: WebSocket, payload: { gameCode: string }) {
+    const { gameCode } = payload;
+    const playerInfo = this.socketToPlayer.get(ws);
 
-    if (!room) {
-      const game = await this.storage.getGameByRoomCode(roomCode);
-      if (!game) {
-        console.error('[handleStartGame] No game found for roomCode:', roomCode);
-        this.sendError(ws, 'Game not found (no game for roomCode)');
-        return;
-      }
-      room = {
-        gameId: game.id,
-        hostSocket: ws,
-        playerSockets: new Map(),
-        questionStartTime: null,
-        questionTimer: null,
-      };
-      this.rooms.set(roomCode, room);
-    } else {
-      const game = await this.storage.getGameByRoomCode(roomCode);
-      if (game) {
-        room.gameId = game.id;
-      }
-    }
-
-    if (room.hostSocket !== ws) {
-      room.hostSocket = ws;
-    }
-
-    // Add debug log here
-    console.log('[handleStartGame] roomCode:', roomCode, 'room.gameId:', room.gameId);
-
-    const game = await this.storage.updateGameStatus(room.gameId, 'active');
-    if (!game) {
-      console.error('[handleStartGame] updateGameStatus failed for gameId:', room.gameId);
-      this.sendError(ws, 'Game not found (updateGameStatus failed)');
+    // 1. Authorize the user
+    if (!playerInfo) {
+      this.sendError(ws, 'Unauthorized: Player not associated with a socket.');
       return;
     }
 
-    await this.startQuestion(roomCode, 0);
+    const game = await this.storage.getGameByGameCode(gameCode);
+
+    // 2. Check if game exists and if the user is the host
+    if (!game) {
+      this.sendError(ws, 'Game not found.');
+      return;
+    }
+
+    if (String(game.hostId) !== String(playerInfo.playerId)) {
+      console.error(`[handleStartGame] Auth failed: Game host is ${game.hostId}, but player ${playerInfo.playerId} tried to start.`);
+      this.sendError(ws, 'Unauthorized: Only the host can start the game.');
+      return;
+    }
+
+    // 3. Update game status
+    const updatedGame = await this.storage.updateGameStatus(game.id, 'active');
+    if (!updatedGame) {
+      console.error(`[handleStartGame] updateGameStatus failed for gameId: ${game.id}`);
+      this.sendError(ws, 'Game not found (updateGameStatus failed)');
+      return;
+    }
+    
+    console.log(`[handleStartGame] Game ${game.id} started by host ${playerInfo.playerId}`);
+
+    // 4. Start the first question
+    await this.startQuestion(gameCode, 0);
   }
 
-  private async handleNextQuestion(ws: WebSocket, payload: { roomCode: string }) {
-    const { roomCode } = payload;
-    const room = this.rooms.get(roomCode);
+  private async handleNextQuestion(ws: WebSocket, payload: { gameCode: string }) {
+    const { gameCode } = payload;
+    const room = this.rooms.get(gameCode);
     
     if (!room || room.hostSocket !== ws) {
       this.sendError(ws, 'Unauthorized');
@@ -258,131 +253,161 @@ class GameWebSocketServer {
     if (nextQuestionIndex >= questions.length) {
       // Game completed
       await this.storage.updateGameStatus(room.gameId, 'completed');
-      this.broadcastToRoom(roomCode, {
+      const players = await this.storage.getPlayersByGameId(room.gameId);
+      this.broadcastToRoom(gameCode, {
         type: 'game_completed',
-        payload: {},
+        payload: {
+          players: players.sort((a, b) => b.score - a.score),
+        },
       });
       return;
     }
 
-    await this.startQuestion(roomCode, nextQuestionIndex);
+    await this.startQuestion(gameCode, nextQuestionIndex);
   }
 
-  private async startQuestion(roomCode: string, questionIndex: number) {
-    const room = this.rooms.get(roomCode);
+  private async startQuestion(gameCode: string, questionIndex: number) {
+    const room = this.rooms.get(gameCode);
     if (!room) return;
 
-    const game = await this.storage.updateCurrentQuestion(room.gameId, questionIndex);
+    const game = await this.storage.getGameById(room.gameId);
     if (!game) return;
 
     const questions = await this.storage.getQuestionsByGameId(game.id);
-    const currentQuestion = questions[questionIndex];
-    
-    if (!currentQuestion) return;
-
-    // Clear any existing timer
-    if (room.questionTimer) {
-      clearTimeout(room.questionTimer);
+    if (questionIndex >= questions.length) {
+      // No more questions, end the game
+      await this.storage.updateGameStatus(game.id, "completed");
+      const players = await this.storage.getPlayersByGameId(game.id);
+      this.broadcastToRoom(gameCode, {
+        type: "game_completed",
+        payload: {
+          players: players.sort((a, b) => b.score - a.score),
+        },
+      });
+      return;
     }
 
-    room.questionStartTime = Date.now();
+    // Update game to the new question index
+    await this.storage.updateCurrentQuestion(game.id, questionIndex);
+    const currentQuestion = questions[questionIndex];
 
-    // Send question to all players
-    this.broadcastToRoom(roomCode, {
-      type: 'question_started',
+    this.broadcastToRoom(gameCode, {
+      type: "question_started",
       payload: {
         question: {
           id: currentQuestion.id,
           questionText: currentQuestion.questionText,
           answers: currentQuestion.answers,
+          questionType: currentQuestion.questionType,
           questionOrder: currentQuestion.questionOrder,
         },
-        timeLimit: game.timePerQuestion * 1000,
+        timeLimit: game.timePerQuestion * 1000, // send in ms
         currentQuestionIndex: questionIndex,
         totalQuestions: questions.length,
       },
     });
 
-    // Set timer for question end
-    room.questionTimer = setTimeout(async () => {
-      await this.endQuestion(roomCode, currentQuestion.id);
+    // Set a timer to automatically end the question
+    room.questionStartTime = Date.now();
+    if (room.questionTimer) {
+      clearTimeout(room.questionTimer);
+    }
+    room.questionTimer = setTimeout(() => {
+      this.endQuestion(gameCode, currentQuestion.id);
     }, game.timePerQuestion * 1000);
   }
 
   private async handleSubmitAnswer(ws: WebSocket, payload: { questionId: string; answerIndex: number }) {
     const playerInfo = this.socketToPlayer.get(ws);
     if (!playerInfo) {
-      this.sendError(ws, 'Player not found');
+      this.sendError(ws, "Unauthorized");
       return;
     }
 
-    const { playerId, roomCode } = playerInfo;
-    const room = this.rooms.get(roomCode);
+    const { gameCode, playerId } = playerInfo;
+    const game = await this.storage.getGameByGameCode(gameCode);
+    if (!game) {
+      this.sendError(ws, "Game not found");
+      return;
+    }
+
+    const room = this.rooms.get(gameCode);
     if (!room || !room.questionStartTime) {
-      this.sendError(ws, 'No active question');
+      this.sendError(ws, "No active question or question hasn't started.");
       return;
     }
 
-    const question = await this.storage.getQuestionById(payload.questionId);
+    const { questionId, answerIndex } = payload;
+    const player = await this.storage.getPlayerById(playerId);
+    if (!player) {
+      this.sendError(ws, "Player not found");
+      return;
+    }
+
+    const question = await this.storage.getQuestionById(questionId);
     if (!question) {
-      this.sendError(ws, 'Question not found');
+      this.sendError(ws, "Question not found");
       return;
     }
 
     const timeToAnswer = Date.now() - room.questionStartTime;
-    const isCorrect = payload.answerIndex === question.correctAnswerIndex;
+    const isCorrect = answerIndex === question.correctAnswerIndex;
     
-    // Calculate points (base points + speed bonus)
-    const game = await this.storage.getGameById(room.gameId);
-    if (!game) return;
-
+    // Calculate points
     let pointsEarned = 0;
     if (isCorrect) {
-      const maxTime = game.timePerQuestion * 1000;
-      const speedBonus = Math.max(0, (maxTime - timeToAnswer) / maxTime);
-      pointsEarned = Math.round(game.pointsPerQuestion * (0.5 + 0.5 * speedBonus));
+      const timePercentage = Math.max(0, (game.timePerQuestion * 1000 - timeToAnswer) / (game.timePerQuestion * 1000));
+      pointsEarned = Math.round(game.pointsPerQuestion * timePercentage);
     }
 
     // Save answer
     await this.storage.createPlayerAnswer({
-      playerId,
-      questionId: question.id,
-      selectedAnswerIndex: payload.answerIndex,
+      playerId: player.id,
+      questionId,
+      selectedAnswerIndex: answerIndex,
       timeToAnswer,
     });
-
+    
     // Update player score
-    const player = await this.storage.getPlayerById(playerId);
-    if (player) {
-      await this.storage.updatePlayerScore(playerId, (player.score ?? 0) + pointsEarned);
-    }
+    await this.storage.updatePlayerScore(player.id, player.score + pointsEarned);
 
-    // Send confirmation to player
     this.sendMessage(ws, {
-      type: 'answer_submitted',
+      type: "answer_submitted",
       payload: {
-        isCorrect,
-        pointsEarned,
-        timeToAnswer,
+        isCorrect: isCorrect,
+        pointsEarned: pointsEarned,
       },
     });
 
-    // Check if all players have answered
-    const players = await this.storage.getPlayersByGameId(room.gameId);
-    const answers = await this.storage.getPlayerAnswersByQuestionId(question.id);
-    
+    // Optional: broadcast player count to all
+    const players = await this.storage.getPlayersByGameId(game.id);
+    const answers = await this.storage.getPlayerAnswersByQuestionId(questionId);
+    this.broadcastToRoom(gameCode, {
+      type: "player_answered",
+      payload: {
+        totalPlayers: players.length,
+        answeredCount: answers.length,
+      },
+    });
+
+    // If all non-host players have answered, end question early
     if (answers.length >= players.filter(p => !p.isHost).length) {
-      // All players answered, end question early
       if (room.questionTimer) {
         clearTimeout(room.questionTimer);
       }
-      await this.endQuestion(roomCode, question.id);
+      await this.endQuestion(gameCode, questionId);
     }
   }
 
-  private async endQuestion(roomCode: string, questionId: string) {
-    const room = this.rooms.get(roomCode);
+  private async endQuestion(gameCode: string, questionId: string) {
+    const room = this.rooms.get(gameCode);
     if (!room) return;
+
+    // Clear the timer
+    if (room.questionTimer) {
+      clearTimeout(room.questionTimer);
+      room.questionTimer = null;
+    }
 
     const question = await this.storage.getQuestionById(questionId);
     if (!question) return;
@@ -391,13 +416,13 @@ class GameWebSocketServer {
     const players = await this.storage.getPlayersByGameId(room.gameId);
 
     // Calculate answer breakdown
-    const answerBreakdown = Array.from({ length: (question.answers as string[]).length }, (_, i) => ({
+    const answerBreakdown = Array.from({ length: question.answers.length }, (_, i) => ({
       answerIndex: i,
       count: answers.filter(a => a.selectedAnswerIndex === i).length,
     }));
 
-    this.broadcastToRoom(roomCode, {
-      type: 'question_ended',
+    this.broadcastToRoom(gameCode, {
+      type: "question_ended",
       payload: {
         question: {
           id: question.id,
@@ -406,20 +431,17 @@ class GameWebSocketServer {
           correctAnswerIndex: question.correctAnswerIndex,
         },
         answerBreakdown,
-        players: players.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)),
+        players: players.sort((a, b) => b.score - a.score),
       },
     });
-
-    room.questionStartTime = null;
-    room.questionTimer = null;
   }
 
   private handleDisconnection(ws: WebSocket) {
     const playerInfo = this.socketToPlayer.get(ws);
     if (!playerInfo) return;
 
-    const { playerId, roomCode } = playerInfo;
-    const room = this.rooms.get(roomCode);
+    const { playerId, gameCode } = playerInfo;
+    const room = this.rooms.get(gameCode);
     
     if (room) {
       if (room.hostSocket === ws) {
@@ -433,15 +455,15 @@ class GameWebSocketServer {
         if (room.questionTimer) {
           clearTimeout(room.questionTimer);
         }
-        this.rooms.delete(roomCode);
+        this.rooms.delete(gameCode);
       }
     }
 
     this.socketToPlayer.delete(ws);
   }
 
-  private broadcastToRoom(roomCode: string, message: any) {
-    const room = this.rooms.get(roomCode);
+  private broadcastToRoom(gameCode: string, message: any) {
+    const room = this.rooms.get(gameCode);
     if (!room) return;
 
     const messageStr = JSON.stringify(message);

@@ -15,7 +15,10 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
     try {
       const gameData: InsertGame = req.body;
       // Create game first (without hostId)
-      const game = await storage.createGame({ ...gameData, hostId: "" });
+      const game = await storage.createGame({
+        ...gameData,
+        hostId: "",
+      });
       // Create host as player
       const hostPlayer = await storage.createPlayer({
         gameId: game.id,
@@ -36,10 +39,10 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
   });
 
   // Get game by room code
-  app.get("/api/games/:roomCode", async (req, res) => {
+  app.get("/api/games/:gameCode", async (req, res) => {
     try {
-      const { roomCode } = req.params;
-      const game = await storage.getGameByRoomCode(roomCode);
+      const { gameCode } = req.params;
+      const game = await storage.getGameByGameCode(gameCode);
       
       if (!game) {
         return res.status(404).json({ error: "Game not found" });
@@ -59,8 +62,15 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
   app.post("/api/games/:gameId/questions", async (req, res) => {
     try {
       const gameId = req.params.gameId;
-      const questionsData: InsertQuestion[] = req.body;
-      
+      const { questions: questionsData }: { questions: InsertQuestion[] } =
+        req.body;
+
+      if (!questionsData || !Array.isArray(questionsData)) {
+        return res
+          .status(400)
+          .json({ error: "Invalid request, 'questions' array is required." });
+      }
+
       const questions = [];
       for (let i = 0; i < questionsData.length; i++) {
         const question = await storage.createQuestion({
@@ -79,12 +89,12 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
   });
 
   // Join a game
-  app.post("/api/games/:roomCode/join", async (req, res) => {
+  app.post("/api/games/:gameCode/join", async (req, res) => {
     try {
-      const { roomCode } = req.params;
+      const { gameCode } = req.params;
       const playerData: InsertPlayer = req.body;
       
-      const game = await storage.getGameByRoomCode(roomCode);
+      const game = await storage.getGameByGameCode(gameCode);
       if (!game) {
         return res.status(404).json({ error: "Game not found" });
       }
@@ -130,10 +140,14 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
   });
 
   // Get host's game history
-  app.get("/api/host/games", async (req, res) => {
+  app.post("/api/host/games", async (req, res) => {
     try {
-      const hostId = 1; // TODO: Get from session/auth
-      const games = await storage.getGamesByHostId(hostId);
+      const { gameIds } = req.body;
+      if (!gameIds || !Array.isArray(gameIds)) {
+        return res.status(400).json({ error: "Invalid request, 'gameIds' array is required." });
+      }
+
+      const games = await storage.getGamesByIds(gameIds);
       
       // Add player count and question count for each game
       const gamesWithDetails = await Promise.all(

@@ -25,6 +25,23 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
   const { connect, sendMessage, addMessageHandler, removeMessageHandler } = useWebSocket();
 
   useEffect(() => {
+    // Initialize with data passed from lobby
+    if (gameState.question && gameState.timeLimit !== undefined && gameState.currentQuestionIndex !== undefined && gameState.totalQuestions !== undefined) {
+      setCurrentQuestion({
+        id: gameState.question.id,
+        questionText: gameState.question.questionText,
+        answers: gameState.question.answers,
+        questionOrder: gameState.question.questionOrder,
+        questionType: gameState.question.questionType,
+      });
+      setTimeLimit(Math.floor(gameState.timeLimit / 1000));
+      setTimeLeft(Math.floor(gameState.timeLimit / 1000));
+      setCurrentQuestionIndex(gameState.currentQuestionIndex);
+      setTotalQuestions(gameState.totalQuestions);
+    }
+  }, []); // Run only once on mount
+
+  useEffect(() => {
     const handler = (message: WebSocketMessage) => {
       switch (message.type) {
         case 'question_started':
@@ -50,10 +67,10 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
           });
           break;
         case 'question_ended':
-          onNavigate({ type: 'question-results' });
+          onNavigate({ type: 'question-results', ...message.payload });
           break;
         case 'game_completed':
-          onNavigate({ type: 'final-results' });
+          onNavigate({ type: 'final-results', ...message.payload });
           break;
         case 'error':
           toast({
@@ -142,7 +159,7 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
             <Button
               key={index}
               onClick={() => selectAnswer(index)}
-              disabled={hasAnswered}
+              disabled={hasAnswered || gameState.isHost}
               className={`
                 ${ANSWER_COLORS[index]} text-white p-8 rounded-3xl text-xl font-bold 
                 transform transition-all shadow-2xl h-auto min-h-[120px]

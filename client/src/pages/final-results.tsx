@@ -16,6 +16,18 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
   const { connect, addMessageHandler, removeMessageHandler } = useWebSocket();
 
   useEffect(() => {
+    // Initialize with data passed from previous screen
+    if (gameState.players) {
+      const nonHostPlayers = gameState.players.filter(player => !player.isHost);
+      const sortedPlayers = [...nonHostPlayers].sort((a, b) => b.score - a.score);
+      setPlayers(sortedPlayers);
+      if (sortedPlayers.length > 0) {
+        setWinner(sortedPlayers[0]);
+      }
+    }
+  }, []); // Run only once
+
+  useEffect(() => {
     const handler = (message: WebSocketMessage) => {
       switch (message.type) {
         case 'game_state':
@@ -30,13 +42,6 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
   useEffect(() => {
     connect();
   }, [connect]);
-
-  useEffect(() => {
-    if (players.length > 0) {
-      const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
-      setWinner(sortedPlayers[0]);
-    }
-  }, [players]);
 
   const playAgain = () => {
     onNavigate({ type: 'home' });
@@ -75,7 +80,7 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-indigo-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-indigo-900 flex items-center justify-center p-[15px]">
       <div className="max-w-4xl mx-auto w-full text-center">
         
         <div className="mb-8">

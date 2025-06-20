@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Plus, Edit, Trash2, Play, Save, RefreshCw, History, Users, HelpCircle, Calendar, Palette, CheckSquare, Circle } from "lucide-react";
 import { GameState, QuestionData, ANSWER_COLORS, ANSWER_TEXT_COLORS } from "@/lib/game-types";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/components/theme-provider";
@@ -31,7 +31,7 @@ interface GameHistory {
   id: number;
   title: string;
   description: string | null;
-  roomCode: string;
+  gameCode: string;
   status: string;
   playerCount: number;
   questionCount: number;
@@ -51,6 +51,15 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
   // Fetch game history
   const { data: gameHistory = [] } = useQuery<GameHistory[]>({
     queryKey: ['/api/host/games'],
+    queryFn: async () => {
+      const hostedGames = JSON.parse(localStorage.getItem('hostedGames') || '[]');
+      if (hostedGames.length === 0) {
+        return [];
+      }
+      const response = await apiRequest("POST", "/api/host/games", { gameIds: hostedGames });
+      return response.json();
+    },
+    enabled: true, // Always try to fetch, queryFn handles the empty case
   });
 
   const addQuestion = () => {
@@ -128,15 +137,21 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
       // Create game
       const gameResponse = await apiRequest("POST", "/api/games", {
         title: gameTitle,
-        description: gameDescription,
         timePerQuestion: parseInt(timePerQuestion),
         pointsPerQuestion: parseInt(pointsPerQuestion),
       });
       
       const game = await gameResponse.json();
 
+      // Store the gameId in localStorage for history
+      const hostedGames = JSON.parse(localStorage.getItem('hostedGames') || '[]');
+      hostedGames.push(game.id);
+      localStorage.setItem('hostedGames', JSON.stringify(hostedGames));
+
       // Add questions
-      await apiRequest("POST", `/api/games/${game.id}/questions`, questions);
+      await apiRequest("POST", `/api/games/${game.id}/questions`, {
+        questions,
+      });
 
       // Fetch players to get the host player's id
       const playersResponse = await apiRequest("GET", `/api/games/${game.id}/players`);
@@ -145,16 +160,19 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
 
       toast({
         title: "Game Created!",
-        description: `Room code: ${game.roomCode}`,
+        description: `Room code: ${game.gameCode}`,
       });
 
       onNavigate({ 
         type: 'game-lobby', 
         gameId: game.id, 
-        roomCode: game.roomCode,
+        gameCode: game.gameCode,
         playerId: hostPlayer?.id,
         isHost: true 
       });
+
+      // Invalidate the game history query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ['/api/host/games'] });
     } catch (error) {
       console.error("Error creating game:", error);
       toast({
@@ -432,54 +450,33 @@ export default function HostDashboard({ gameState, onNavigate }: HostDashboardPr
                       {gameHistory.map((game: GameHistory) => (
                         <Card key={game.id} className="p-6 hover:shadow-lg transition-shadow">
                           <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <h4 className="text-lg font-semibold text-gray-800">{game.title}</h4>
-                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                  game.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  game.status === 'active' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {game.status}
-                                </span>
-                              </div>
-                              {game.description && (
-                                <p className="text-gray-600 mb-3">{game.description}</p>
-                              )}
-                              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                <div className="flex items-center space-x-1">
-                                  <Users className="w-4 h-4" />
-                                  <span>{game.playerCount} players</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <HelpCircle className="w-4 h-4" />
-                                  <span>{game.questionCount} questions</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <Calendar className="w-4 h-4" />
-                                  <span>{new Date(game.createdAt).toLocaleDateString()}</span>
-                                </div>
-                              </div>
+                            <div>
+                              <h4 className="text-lg font-bold">{game.title}</h4>
+                              <p className="text-sm text-gray-500">
+                                Code: <span className="font-mono bg-gray-100 p-1 rounded">{game.gameCode}</span>
+                              </p>
                             </div>
-                            <div className="text-right">
-                              <div className="bg-quiz-purple text-white px-3 py-1 rounded-full text-sm font-semibold mb-2">
-                                {game.roomCode}
+                            <div className="flex items-center space-x-4">
+                              <div className="text-center">
+                                <p className="font-bold">{game.playerCount}</p>
+                                <p className="text-xs text-gray-500">Players</p>
                               </div>
-                              {game.status === 'lobby' && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => onNavigate({
-                                    type: 'game-lobby',
-                                    gameId: game.id,
-                                    roomCode: game.roomCode,
-                                    isHost: true
-                                  })}
-                                  className="bg-quiz-green text-white hover:bg-green-600"
-                                >
-                                  <Play className="w-3 h-3 mr-1" />
-                                  Resume
-                                </Button>
-                              )}
+                              <div className="text-center">
+                                <p className="font-bold">{game.questionCount}</p>
+                                <p className="text-xs text-gray-500">Questions</p>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => onNavigate({
+                                  type: 'game-lobby',
+                                  gameId: game.id,
+                                  gameCode: game.gameCode,
+                                  isHost: true
+                                })}
+                                className="bg-quiz-green text-white hover:bg-green-600"
+                              >
+                                Re-host
+                              </Button>
                             </div>
                           </div>
                         </Card>

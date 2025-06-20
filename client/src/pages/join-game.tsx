@@ -14,13 +14,13 @@ interface JoinGameProps {
 
 export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
   const { toast } = useToast();
-  const [roomCode, setRoomCode] = useState("");
+  const [gameCode, setGameCode] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0]);
   const [isJoining, setIsJoining] = useState(false);
 
   const joinGame = async () => {
-    if (!roomCode.trim() || !playerName.trim()) {
+    if (!gameCode.trim() || !playerName.trim()) {
       toast({
         title: "Validation Error",
         description: "Please enter both room code and your name.",
@@ -31,7 +31,7 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
 
     setIsJoining(true);
     try {
-      const response = await apiRequest("POST", `/api/games/${roomCode.toUpperCase()}/join`, {
+      const response = await apiRequest("POST", `/api/games/${gameCode.toUpperCase()}/join`, {
         name: playerName,
         avatar: selectedAvatar,
       });
@@ -46,7 +46,7 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
       onNavigate({ 
         type: 'game-lobby', 
         gameId: game.id, 
-        roomCode: game.roomCode,
+        gameCode: game.gameCode,
         playerId: player.id,
         isHost: false 
       });
@@ -85,8 +85,8 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
           <div className="mb-6">
             <Input
               placeholder="Room Code (e.g., ABC123)"
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              value={gameCode}
+              onChange={(e) => setGameCode(e.target.value.toUpperCase())}
               className="text-center text-2xl font-bold uppercase tracking-widest border-2 focus:border-quiz-green"
               maxLength={6}
             />
