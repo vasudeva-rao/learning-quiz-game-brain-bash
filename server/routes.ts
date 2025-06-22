@@ -1,12 +1,15 @@
+import type { InsertGame, InsertPlayer, InsertQuestion } from "@shared/schema";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { GameWebSocketServer } from "./websocket";
-import type { InsertGame, InsertQuestion, InsertPlayer } from "@shared/schema";
 import type { IStorage } from "./storage";
+import { GameWebSocketServer } from "./websocket";
 
-export async function registerRoutes(app: Express, storage: IStorage): Promise<Server> {
+export async function registerRoutes(
+  app: Express,
+  storage: IStorage
+): Promise<Server> {
   const httpServer = createServer(app);
-  
+
   // Initialize WebSocket server with storage
   new GameWebSocketServer(httpServer, storage);
 
@@ -43,14 +46,14 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
     try {
       const { gameCode } = req.params;
       const game = await storage.getGameByGameCode(gameCode);
-      
+
       if (!game) {
         return res.status(404).json({ error: "Game not found" });
       }
-      
+
       const players = await storage.getPlayersByGameId(game.id);
       const questions = await storage.getQuestionsByGameId(game.id);
-      
+
       res.json({ game, players, questions });
     } catch (error) {
       console.error("Error fetching game:", error);
@@ -80,7 +83,7 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
         });
         questions.push(question);
       }
-      
+
       res.json(questions);
     } catch (error) {
       console.error("Error adding questions:", error);
@@ -93,21 +96,21 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
     try {
       const { gameCode } = req.params;
       const playerData: InsertPlayer = req.body;
-      
+
       const game = await storage.getGameByGameCode(gameCode);
       if (!game) {
         return res.status(404).json({ error: "Game not found" });
       }
-      
+
       if (game.status !== "lobby") {
         return res.status(400).json({ error: "Game has already started" });
       }
-      
+
       const player = await storage.createPlayer({
         ...playerData,
         gameId: game.id,
       });
-      
+
       res.json({ player, game });
     } catch (error) {
       console.error("Error joining game:", error);
@@ -144,11 +147,13 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
     try {
       const { gameIds } = req.body;
       if (!gameIds || !Array.isArray(gameIds)) {
-        return res.status(400).json({ error: "Invalid request, 'gameIds' array is required." });
+        return res
+          .status(400)
+          .json({ error: "Invalid request, 'gameIds' array is required." });
       }
 
       const games = await storage.getGamesByIds(gameIds);
-      
+
       // Add player count and question count for each game
       const gamesWithDetails = await Promise.all(
         games.map(async (game) => {
@@ -156,12 +161,12 @@ export async function registerRoutes(app: Express, storage: IStorage): Promise<S
           const questions = await storage.getQuestionsByGameId(game.id);
           return {
             ...game,
-            playerCount: players.filter(p => !p.isHost).length,
+            playerCount: players.filter((p) => !p.isHost).length,
             questionCount: questions.length,
           };
         })
       );
-      
+
       res.json(gamesWithDetails);
     } catch (error) {
       console.error("Error fetching host games:", error);

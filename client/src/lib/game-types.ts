@@ -1,5 +1,13 @@
 export interface GameState {
-  type: 'home' | 'host-dashboard' | 'join-game' | 'game-lobby' | 'gameplay' | 'question-results' | 'scoreboard' | 'final-results';
+  type:
+    | "home"
+    | "host-dashboard"
+    | "join-game"
+    | "game-lobby"
+    | "gameplay"
+    | "question-results"
+    | "scoreboard"
+    | "final-results";
   gameId?: number;
   gameCode?: string;
   playerId?: number;
@@ -20,7 +28,7 @@ export interface WebSocketMessage {
 export interface QuestionData {
   id: number;
   questionText: string;
-  questionType: 'multiple_choice' | 'multi_select' | 'true_false';
+  questionType: "multiple_choice" | "multi_select" | "true_false";
   answers: string[];
   correctAnswerIndex?: number;
   correctAnswerIndices?: number[];
@@ -46,18 +54,18 @@ export interface GameData {
   currentQuestionIndex: number;
 }
 
-export const AVATARS = ['🐱', '🐶', '🦊', '🐸', '🐨', '🦁', '🐯', '🐼'];
+export const AVATARS = ["🐱", "🐶", "🦊", "🐸", "🐨", "🦁", "🐯", "🐼"];
 
 export const ANSWER_COLORS = [
-  'bg-quiz-red hover:bg-red-600',
-  'bg-quiz-blue hover:bg-blue-600', 
-  'bg-quiz-yellow hover:bg-yellow-600',
-  'bg-quiz-green hover:bg-green-600'
+  "bg-quiz-red hover:bg-red-600",
+  "bg-quiz-blue hover:bg-blue-600",
+  "bg-quiz-yellow hover:bg-yellow-600",
+  "bg-quiz-green hover:bg-green-600",
 ];
 
 export const ANSWER_TEXT_COLORS = [
-  'text-quiz-red',
-  'text-quiz-blue',
-  'text-quiz-yellow', 
-  'text-quiz-green'
+  "text-quiz-red",
+  "text-quiz-blue",
+  "text-quiz-yellow",
+  "text-quiz-green",
 ];

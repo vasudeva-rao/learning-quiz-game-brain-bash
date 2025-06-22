@@ -1,8 +1,8 @@
-# QuizMaster Game Application
+# Brain Bash Game Application
 
 ## Overview
 
-QuizMaster is a real-time quiz application built with React, Express, and WebSocket technology. It allows users to create and host quiz games, join games using room codes, and compete in real-time trivia sessions. The application features a modern UI with Tailwind CSS and shadcn/ui components, providing an engaging quiz experience similar to popular quiz platforms.
+Brain Bash is a real-time quiz application built with React, Express, and WebSocket technology. It allows users to create and host quiz games, join games using room codes, and compete in real-time trivia sessions. The application features a modern UI with Tailwind CSS and shadcn/ui components, providing an engaging quiz experience similar to popular quiz platforms.
 
 ## System Architecture
 

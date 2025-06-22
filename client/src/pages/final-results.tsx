@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Home, RotateCcw, Crown, Trophy, Medal, Award } from "lucide-react";
-import { GameState, PlayerData, WebSocketMessage } from "@/lib/game-types";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { GameState, PlayerData, WebSocketMessage } from "@/lib/game-types";
+import { Award, Crown, Home, Medal, RotateCcw, Trophy } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface FinalResultsProps {
   gameState: GameState;
   onNavigate: (state: Partial<GameState>) => void;
 }
 
-export default function FinalResults({ gameState, onNavigate }: FinalResultsProps) {
+export default function FinalResults({
+  gameState,
+  onNavigate,
+}: FinalResultsProps) {
   const [players, setPlayers] = useState<PlayerData[]>([]);
   const [winner, setWinner] = useState<PlayerData | null>(null);
 
@@ -18,8 +21,12 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
   useEffect(() => {
     // Initialize with data passed from previous screen
     if (gameState.players) {
-      const nonHostPlayers = gameState.players.filter(player => !player.isHost);
-      const sortedPlayers = [...nonHostPlayers].sort((a, b) => b.score - a.score);
+      const nonHostPlayers = gameState.players.filter(
+        (player) => !player.isHost
+      );
+      const sortedPlayers = [...nonHostPlayers].sort(
+        (a, b) => b.score - a.score
+      );
       setPlayers(sortedPlayers);
       if (sortedPlayers.length > 0) {
         setWinner(sortedPlayers[0]);
@@ -30,7 +37,7 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
   useEffect(() => {
     const handler = (message: WebSocketMessage) => {
       switch (message.type) {
-        case 'game_state':
+        case "game_state":
           setPlayers(message.payload.players);
           break;
       }
@@ -44,11 +51,11 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
   }, [connect]);
 
   const playAgain = () => {
-    onNavigate({ type: 'home' });
+    onNavigate({ type: "home" });
   };
 
   const goHome = () => {
-    onNavigate({ type: 'home' });
+    onNavigate({ type: "home" });
   };
 
   const getRankIcon = (rank: number) => {
@@ -67,13 +74,13 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
   const getRankColor = (rank: number) => {
     switch (rank) {
       case 1:
-        return 'bg-quiz-yellow';
+        return "bg-quiz-yellow";
       case 2:
-        return 'bg-gray-400';
+        return "bg-gray-400";
       case 3:
-        return 'bg-yellow-600';
+        return "bg-yellow-600";
       default:
-        return 'bg-gray-500';
+        return "bg-gray-500";
     }
   };
 
@@ -82,12 +89,13 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
   return (
     <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-indigo-900 flex items-center justify-center p-[15px]">
       <div className="max-w-4xl mx-auto w-full text-center">
-        
         <div className="mb-8">
           <h2 className="text-4xl md:text-6xl font-bold text-white mb-4">
             🎉 Game Complete! 🎉
           </h2>
-          <p className="text-white text-xl opacity-90">Thanks for playing QuizMaster!</p>
+          <p className="text-white text-xl opacity-90">
+            Thanks for playing Brain Bash!
+          </p>
         </div>
 
         {/* Winner Celebration */}
@@ -98,7 +106,9 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
             <div className="text-white">
               <div className="text-4xl mb-2">{winner.avatar}</div>
               <div className="text-2xl font-bold">{winner.name}</div>
-              <div className="text-4xl font-bold">{winner.score.toLocaleString()} points</div>
+              <div className="text-4xl font-bold">
+                {winner.score.toLocaleString()} points
+              </div>
             </div>
           </div>
         )}
@@ -110,17 +120,23 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
             {sortedPlayers.map((player, index) => {
               const rank = index + 1;
               return (
-                <div 
+                <div
                   key={player.id}
                   className="flex items-center justify-between bg-white bg-opacity-20 rounded-xl p-4"
                 >
                   <div className="flex items-center space-x-4">
-                    <div className={`${getRankColor(rank)} text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg`}>
+                    <div
+                      className={`${getRankColor(
+                        rank
+                      )} text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg`}
+                    >
                       {rank}
                     </div>
                     <div className="text-3xl">{player.avatar}</div>
                     <div>
-                      <span className="text-white font-semibold text-lg">{player.name}</span>
+                      <span className="text-white font-semibold text-lg">
+                        {player.name}
+                      </span>
                       <div className="text-gray-300 text-sm">
                         {/* Placeholder for correct answers - would need to track this */}
                         High scorer
@@ -141,14 +157,14 @@ export default function FinalResults({ gameState, onNavigate }: FinalResultsProp
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button 
+          <Button
             onClick={playAgain}
             className="bg-quiz-green text-white px-8 py-4 text-lg font-bold hover:shadow-lg transition-shadow"
           >
             <RotateCcw className="w-5 h-5 mr-3" />
             Play Again
           </Button>
-          <Button 
+          <Button
             onClick={goHome}
             className="bg-white text-quiz-purple px-8 py-4 text-lg font-bold hover:shadow-lg transition-shadow"
           >

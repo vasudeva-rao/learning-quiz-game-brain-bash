@@ -1,6 +1,6 @@
-import { WebSocketServer, WebSocket } from 'ws';
-import { Server } from 'http';
-import type { IStorage } from './storage';
+import { Server } from "http";
+import { WebSocket, WebSocketServer } from "ws";
+import type { IStorage } from "./storage";
 
 interface GameRoom {
   gameId: string;
@@ -13,46 +13,49 @@ interface GameRoom {
 class GameWebSocketServer {
   private wss: WebSocketServer;
   private rooms: Map<string, GameRoom> = new Map();
-  private socketToPlayer: Map<WebSocket, { playerId: string; gameCode: string }> = new Map();
+  private socketToPlayer: Map<
+    WebSocket,
+    { playerId: string; gameCode: string }
+  > = new Map();
   private storage: IStorage;
 
   constructor(server: Server, storage: IStorage) {
-    this.wss = new WebSocketServer({ 
-      server, 
-      path: '/ws',
+    this.wss = new WebSocketServer({
+      server,
+      path: "/ws",
       perMessageDeflate: false,
-      maxPayload: 16 * 1024 * 1024
+      maxPayload: 16 * 1024 * 1024,
     });
     this.storage = storage;
     this.setupEventHandlers();
-    console.log('WebSocket server initialized on path /ws');
+    console.log("WebSocket server initialized on path /ws");
   }
 
   private setupEventHandlers() {
-    this.wss.on('connection', (ws: WebSocket) => {
-      console.log('WebSocket connection established');
-      
-      // Send initial connection confirmation
-      this.sendMessage(ws, { type: 'connection_established' });
+    this.wss.on("connection", (ws: WebSocket) => {
+      console.log("WebSocket connection established");
 
-      ws.on('message', async (data: Buffer) => {
+      // Send initial connection confirmation
+      this.sendMessage(ws, { type: "connection_established" });
+
+      ws.on("message", async (data: Buffer) => {
         try {
           const message = JSON.parse(data.toString());
-          console.log('Received WebSocket message:', message.type);
+          console.log("Received WebSocket message:", message.type);
           await this.handleMessage(ws, message);
         } catch (error) {
-          console.error('Error handling WebSocket message:', error);
-          this.sendError(ws, 'Invalid message format');
+          console.error("Error handling WebSocket message:", error);
+          this.sendError(ws, "Invalid message format");
         }
       });
 
-      ws.on('close', (code, reason) => {
-        console.log('WebSocket connection closed:', code, reason.toString());
+      ws.on("close", (code, reason) => {
+        console.log("WebSocket connection closed:", code, reason.toString());
         this.handleDisconnection(ws);
       });
 
-      ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+      ws.on("error", (error) => {
+        console.error("WebSocket error:", error);
       });
     });
   }
@@ -61,41 +64,44 @@ class GameWebSocketServer {
     const { type, payload } = message;
 
     switch (type) {
-      case 'join_game':
+      case "join_game":
         await this.handleJoinGame(ws, payload);
         break;
-      case 'host_game':
+      case "host_game":
         await this.handleHostGame(ws, payload);
         break;
-      case 'start_game':
+      case "start_game":
         await this.handleStartGame(ws, payload);
         break;
-      case 'next_question':
+      case "next_question":
         await this.handleNextQuestion(ws, payload);
         break;
-      case 'submit_answer':
+      case "submit_answer":
         await this.handleSubmitAnswer(ws, payload);
         break;
-      case 'ping':
-        this.sendMessage(ws, { type: 'pong' });
+      case "ping":
+        this.sendMessage(ws, { type: "pong" });
         break;
       default:
-        this.sendError(ws, 'Unknown message type');
+        this.sendError(ws, "Unknown message type");
     }
   }
 
-  private async handleJoinGame(ws: WebSocket, payload: { gameCode: string; playerId: string }) {
+  private async handleJoinGame(
+    ws: WebSocket,
+    payload: { gameCode: string; playerId: string }
+  ) {
     const { gameCode, playerId } = payload;
-    
+
     const game = await this.storage.getGameByGameCode(gameCode);
     if (!game) {
-      this.sendError(ws, 'Game not found');
+      this.sendError(ws, "Game not found");
       return;
     }
 
     const player = await this.storage.getPlayerById(playerId);
     if (!player || player.gameId !== game.id) {
-      this.sendError(ws, 'Player not found in this game');
+      this.sendError(ws, "Player not found in this game");
       return;
     }
 
@@ -127,7 +133,7 @@ class GameWebSocketServer {
     // Send current game state to all players in the room
     const players = await this.storage.getPlayersByGameId(game.id);
     this.broadcastToRoom(gameCode, {
-      type: 'game_state',
+      type: "game_state",
       payload: {
         game,
         players,
@@ -137,7 +143,7 @@ class GameWebSocketServer {
 
     // Send confirmation to the joining player
     this.sendMessage(ws, {
-      type: 'joined_game',
+      type: "joined_game",
       payload: {
         game,
         players,
@@ -146,18 +152,21 @@ class GameWebSocketServer {
     });
   }
 
-  private async handleHostGame(ws: WebSocket, payload: { gameId: string; hostId: string }) {
+  private async handleHostGame(
+    ws: WebSocket,
+    payload: { gameId: string; hostId: string }
+  ) {
     const { gameId, hostId } = payload;
-    
+
     const game = await this.storage.getGameById(gameId);
-    console.log('Comparing host IDs:', {
+    console.log("Comparing host IDs:", {
       dbHostId: game?.hostId,
       dbHostIdType: typeof game?.hostId,
       clientHostId: hostId,
       clientHostIdType: typeof hostId,
     });
     if (!game || String(game.hostId) !== String(hostId)) {
-      this.sendError(ws, 'Unauthorized');
+      this.sendError(ws, "Unauthorized");
       return;
     }
 
@@ -180,7 +189,7 @@ class GameWebSocketServer {
     // Broadcast current game state to all sockets in the room (including host)
     const players = await this.storage.getPlayersByGameId(game.id);
     this.broadcastToRoom(gameCode, {
-      type: 'game_state',
+      type: "game_state",
       payload: {
         game,
         players,
@@ -189,7 +198,7 @@ class GameWebSocketServer {
     });
 
     this.sendMessage(ws, {
-      type: 'host_connected',
+      type: "host_connected",
       payload: { game },
     });
   }
@@ -200,7 +209,7 @@ class GameWebSocketServer {
 
     // 1. Authorize the user
     if (!playerInfo) {
-      this.sendError(ws, 'Unauthorized: Player not associated with a socket.');
+      this.sendError(ws, "Unauthorized: Player not associated with a socket.");
       return;
     }
 
@@ -208,54 +217,63 @@ class GameWebSocketServer {
 
     // 2. Check if game exists and if the user is the host
     if (!game) {
-      this.sendError(ws, 'Game not found.');
+      this.sendError(ws, "Game not found.");
       return;
     }
 
     if (String(game.hostId) !== String(playerInfo.playerId)) {
-      console.error(`[handleStartGame] Auth failed: Game host is ${game.hostId}, but player ${playerInfo.playerId} tried to start.`);
-      this.sendError(ws, 'Unauthorized: Only the host can start the game.');
+      console.error(
+        `[handleStartGame] Auth failed: Game host is ${game.hostId}, but player ${playerInfo.playerId} tried to start.`
+      );
+      this.sendError(ws, "Unauthorized: Only the host can start the game.");
       return;
     }
 
     // 3. Update game status
-    const updatedGame = await this.storage.updateGameStatus(game.id, 'active');
+    const updatedGame = await this.storage.updateGameStatus(game.id, "active");
     if (!updatedGame) {
-      console.error(`[handleStartGame] updateGameStatus failed for gameId: ${game.id}`);
-      this.sendError(ws, 'Game not found (updateGameStatus failed)');
+      console.error(
+        `[handleStartGame] updateGameStatus failed for gameId: ${game.id}`
+      );
+      this.sendError(ws, "Game not found (updateGameStatus failed)");
       return;
     }
-    
-    console.log(`[handleStartGame] Game ${game.id} started by host ${playerInfo.playerId}`);
+
+    console.log(
+      `[handleStartGame] Game ${game.id} started by host ${playerInfo.playerId}`
+    );
 
     // 4. Start the first question
     await this.startQuestion(gameCode, 0);
   }
 
-  private async handleNextQuestion(ws: WebSocket, payload: { gameCode: string }) {
+  private async handleNextQuestion(
+    ws: WebSocket,
+    payload: { gameCode: string }
+  ) {
     const { gameCode } = payload;
     const room = this.rooms.get(gameCode);
-    
+
     if (!room || room.hostSocket !== ws) {
-      this.sendError(ws, 'Unauthorized');
+      this.sendError(ws, "Unauthorized");
       return;
     }
 
     const game = await this.storage.getGameById(room.gameId);
     if (!game) {
-      this.sendError(ws, 'Game not found');
+      this.sendError(ws, "Game not found");
       return;
     }
 
     const nextQuestionIndex = (game.currentQuestionIndex ?? 0) + 1;
     const questions = await this.storage.getQuestionsByGameId(game.id);
-    
+
     if (nextQuestionIndex >= questions.length) {
       // Game completed
-      await this.storage.updateGameStatus(room.gameId, 'completed');
+      await this.storage.updateGameStatus(room.gameId, "completed");
       const players = await this.storage.getPlayersByGameId(room.gameId);
       this.broadcastToRoom(gameCode, {
-        type: 'game_completed',
+        type: "game_completed",
         payload: {
           players: players.sort((a, b) => b.score - a.score),
         },
@@ -317,7 +335,10 @@ class GameWebSocketServer {
     }, game.timePerQuestion * 1000);
   }
 
-  private async handleSubmitAnswer(ws: WebSocket, payload: { questionId: string; answerIndex: number }) {
+  private async handleSubmitAnswer(
+    ws: WebSocket,
+    payload: { questionId: string; answerIndex: number }
+  ) {
     const playerInfo = this.socketToPlayer.get(ws);
     if (!playerInfo) {
       this.sendError(ws, "Unauthorized");
@@ -352,11 +373,15 @@ class GameWebSocketServer {
 
     const timeToAnswer = Date.now() - room.questionStartTime;
     const isCorrect = answerIndex === question.correctAnswerIndex;
-    
+
     // Calculate points
     let pointsEarned = 0;
     if (isCorrect) {
-      const timePercentage = Math.max(0, (game.timePerQuestion * 1000 - timeToAnswer) / (game.timePerQuestion * 1000));
+      const timePercentage = Math.max(
+        0,
+        (game.timePerQuestion * 1000 - timeToAnswer) /
+          (game.timePerQuestion * 1000)
+      );
       pointsEarned = Math.round(game.pointsPerQuestion * timePercentage);
     }
 
@@ -367,9 +392,12 @@ class GameWebSocketServer {
       selectedAnswerIndex: answerIndex,
       timeToAnswer,
     });
-    
+
     // Update player score
-    await this.storage.updatePlayerScore(player.id, player.score + pointsEarned);
+    await this.storage.updatePlayerScore(
+      player.id,
+      player.score + pointsEarned
+    );
 
     this.sendMessage(ws, {
       type: "answer_submitted",
@@ -391,7 +419,7 @@ class GameWebSocketServer {
     });
 
     // If all non-host players have answered, end question early
-    if (answers.length >= players.filter(p => !p.isHost).length) {
+    if (answers.length >= players.filter((p) => !p.isHost).length) {
       if (room.questionTimer) {
         clearTimeout(room.questionTimer);
       }
@@ -416,10 +444,13 @@ class GameWebSocketServer {
     const players = await this.storage.getPlayersByGameId(room.gameId);
 
     // Calculate answer breakdown
-    const answerBreakdown = Array.from({ length: question.answers.length }, (_, i) => ({
-      answerIndex: i,
-      count: answers.filter(a => a.selectedAnswerIndex === i).length,
-    }));
+    const answerBreakdown = Array.from(
+      { length: question.answers.length },
+      (_, i) => ({
+        answerIndex: i,
+        count: answers.filter((a) => a.selectedAnswerIndex === i).length,
+      })
+    );
 
     this.broadcastToRoom(gameCode, {
       type: "question_ended",
@@ -442,7 +473,7 @@ class GameWebSocketServer {
 
     const { playerId, gameCode } = playerInfo;
     const room = this.rooms.get(gameCode);
-    
+
     if (room) {
       if (room.hostSocket === ws) {
         room.hostSocket = null;
@@ -484,14 +515,14 @@ class GameWebSocketServer {
       try {
         ws.send(JSON.stringify(message));
       } catch (error) {
-        console.error('Error sending WebSocket message:', error);
+        console.error("Error sending WebSocket message:", error);
       }
     }
   }
 
   private sendError(ws: WebSocket, error: string) {
-    console.error('WebSocket error being sent:', error);
-    this.sendMessage(ws, { type: 'error', payload: { error } });
+    console.error("WebSocket error being sent:", error);
+    this.sendMessage(ws, { type: "error", payload: { error } });
   }
 }
 

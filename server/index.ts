@@ -1,12 +1,12 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import { createMongoStorage } from "./storage";
-import 'dotenv/config';
+import "dotenv/config";
+import express, { NextFunction, type Request, Response } from "express";
 import { createServer } from "http";
+import { registerRoutes } from "./routes";
+import { createMongoStorage } from "./storage";
+import { log, serveStatic, setupVite } from "./vite";
 import { GameWebSocketServer } from "./websocket";
 
 const app = express();
@@ -77,13 +77,16 @@ async function main() {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  server.listen(
+    {
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    },
+    () => {
+      log(`serving on port ${port}`);
+    }
+  );
 }
 
 main();

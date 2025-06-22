@@ -1,14 +1,14 @@
 import {
   Game,
-  Question,
-  Player,
-  PlayerAnswer,
   InsertGame,
-  InsertQuestion,
   InsertPlayer,
   InsertPlayerAnswer,
+  InsertQuestion,
+  Player,
+  PlayerAnswer,
+  Question,
 } from "@shared/schema";
-import { MongoClient, Db, ObjectId, WithId, Collection } from "mongodb";
+import { Collection, Db, MongoClient, ObjectId } from "mongodb";
 
 // The IStorage interface defines the contract for all storage operations.
 export interface IStorage {
@@ -29,7 +29,10 @@ export interface IStorage {
   createPlayer(player: InsertPlayer): Promise<Player>;
   getPlayersByGameId(gameId: string): Promise<Player[]>;
   getPlayerById(id: string): Promise<Player | undefined>;
-  updatePlayerScore(playerId: string, score: number): Promise<Player | undefined>;
+  updatePlayerScore(
+    playerId: string,
+    score: number
+  ): Promise<Player | undefined>;
   updatePlayerAsHost(playerId: string): Promise<Player | undefined>;
   createPlayerAnswer(answer: InsertPlayerAnswer): Promise<PlayerAnswer>;
   getPlayerAnswersByQuestionId(questionId: string): Promise<PlayerAnswer[]>;
@@ -99,19 +102,29 @@ export class MongoStorage implements IStorage {
       .toArray();
     return docs.map((doc) => {
       const { _id, createdAt, ...rest } = doc;
-      return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
+      return {
+        ...rest,
+        id: _id.toString(),
+        createdAt: createdAt.toISOString(),
+      };
     });
   }
 
   async getGamesByIds(ids: string[]): Promise<Game[]> {
-    const validIds = ids.filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+    const validIds = ids
+      .filter((id) => ObjectId.isValid(id))
+      .map((id) => new ObjectId(id));
     const docs = await this.games
       .find({ _id: { $in: validIds as any[] } })
       .sort({ createdAt: -1 })
       .toArray();
     return docs.map((doc) => {
       const { _id, createdAt, ...rest } = doc;
-      return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
+      return {
+        ...rest,
+        id: _id.toString(),
+        createdAt: createdAt.toISOString(),
+      };
     });
   }
 
@@ -263,7 +276,11 @@ export class MongoStorage implements IStorage {
       ...docToInsert,
       _id: result.insertedId,
     };
-    return { ...rest, id: _id.toString(), answeredAt: answeredAt.toISOString() };
+    return {
+      ...rest,
+      id: _id.toString(),
+      answeredAt: answeredAt.toISOString(),
+    };
   }
 
   async getPlayerAnswersByQuestionId(
@@ -281,9 +298,7 @@ export class MongoStorage implements IStorage {
     });
   }
 
-  async getPlayerAnswersByPlayerId(
-    playerId: string
-  ): Promise<PlayerAnswer[]> {
+  async getPlayerAnswersByPlayerId(playerId: string): Promise<PlayerAnswer[]> {
     if (!ObjectId.isValid(playerId)) return [];
     const docs = await this.playerAnswers.find({ playerId }).toArray();
     return docs.map((doc) => {

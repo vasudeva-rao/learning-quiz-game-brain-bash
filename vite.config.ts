@@ -1,11 +1,9 @@
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [
-    react(),
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
@@ -24,11 +22,11 @@ export default defineConfig({
       deny: ["**/.*"],
     },
     proxy: {
-      '/ws': {
+      "/ws": {
         target: `http://localhost:${process.env.VITE_BACKEND_PORT || 5000}`,
         ws: true,
       },
-      '/api': {
+      "/api": {
         target: `http://localhost:${process.env.VITE_BACKEND_PORT || 5000}`,
         changeOrigin: true,
       },
