@@ -121,13 +121,7 @@ class GameWebSocketServer {
       room.gameId = game.id;
     }
 
-    if (player.isHost) {
-      // Always set hostSocket to the latest host connection
-      room.hostSocket = ws;
-    } else {
-      room.playerSockets.set(playerId, ws);
-    }
-
+    room.playerSockets.set(playerId, ws);
     this.socketToPlayer.set(ws, { playerId, gameCode });
 
     // Send current game state to all players in the room
@@ -185,6 +179,14 @@ class GameWebSocketServer {
 
     room.hostSocket = ws;
     this.socketToPlayer.set(ws, { playerId: hostId, gameCode });
+
+    // When the host connects, they are also a player in the room.
+    // Ensure they are in the playerSockets map to receive all broadcasts.
+    // The host player document is created in the DB when the game is created/re-hosted.
+    const hostPlayer = await this.storage.getPlayerById(hostId);
+    if (hostPlayer) {
+      room.playerSockets.set(hostId, ws);
+    }
 
     // Broadcast current game state to all sockets in the room (including host)
     const players = await this.storage.getPlayersByGameId(game.id);
@@ -337,7 +339,7 @@ class GameWebSocketServer {
 
   private async handleSubmitAnswer(
     ws: WebSocket,
-    payload: { questionId: string; answerIndex: number }
+    payload: { questionId: string; answerIndex?: number; answerIndices?: number[] }
   ) {
     const playerInfo = this.socketToPlayer.get(ws);
     if (!playerInfo) {
@@ -358,7 +360,7 @@ class GameWebSocketServer {
       return;
     }
 
-    const { questionId, answerIndex } = payload;
+    const { questionId, answerIndex, answerIndices } = payload;
     const player = await this.storage.getPlayerById(playerId);
     if (!player) {
       this.sendError(ws, "Player not found");
@@ -372,7 +374,18 @@ class GameWebSocketServer {
     }
 
     const timeToAnswer = Date.now() - room.questionStartTime;
-    const isCorrect = answerIndex === question.correctAnswerIndex;
+    let isCorrect = false;
+    let selectedAnswer: number | number[] | undefined;
+
+    if (question.questionType === 'multi_select') {
+      const correct = question.correctAnswerIndices || [];
+      const submitted = answerIndices || [];
+      isCorrect = correct.length === submitted.length && correct.every(val => submitted.includes(val));
+      selectedAnswer = submitted;
+    } else {
+      isCorrect = answerIndex === question.correctAnswerIndex;
+      selectedAnswer = answerIndex;
+    }
 
     // Calculate points
     let pointsEarned = 0;
@@ -389,7 +402,8 @@ class GameWebSocketServer {
     await this.storage.createPlayerAnswer({
       playerId: player.id,
       questionId,
-      selectedAnswerIndex: answerIndex,
+      selectedAnswerIndex: answerIndex, // Note: For multi-select, this is simplified.
+      selectedAnswerIndices: answerIndices,
       timeToAnswer,
     });
 
@@ -446,10 +460,17 @@ class GameWebSocketServer {
     // Calculate answer breakdown
     const answerBreakdown = Array.from(
       { length: question.answers.length },
-      (_, i) => ({
-        answerIndex: i,
-        count: answers.filter((a) => a.selectedAnswerIndex === i).length,
-      })
+      (_, i) => {
+        let count = 0;
+        if (question.questionType === 'multi_select') {
+          // Count how many players included this answer index in their submission
+          count = answers.filter(a => a.selectedAnswerIndices?.includes(i)).length;
+        } else {
+          // Count how many players chose this specific answer index
+          count = answers.filter(a => a.selectedAnswerIndex === i).length;
+        }
+        return { answerIndex: i, count };
+      }
     );
 
     this.broadcastToRoom(gameCode, {
@@ -459,7 +480,9 @@ class GameWebSocketServer {
           id: question.id,
           questionText: question.questionText,
           answers: question.answers,
+          questionType: question.questionType,
           correctAnswerIndex: question.correctAnswerIndex,
+          correctAnswerIndices: question.correctAnswerIndices,
         },
         answerBreakdown,
         players: players.sort((a, b) => b.score - a.score),

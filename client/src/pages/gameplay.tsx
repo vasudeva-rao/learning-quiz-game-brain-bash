@@ -24,6 +24,7 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
   const [timeLeft, setTimeLeft] = useState(30);
   const [timeLimit, setTimeLimit] = useState(30);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
@@ -71,6 +72,7 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
           setCurrentQuestionIndex(message.payload.currentQuestionIndex);
           setTotalQuestions(message.payload.totalQuestions);
           setSelectedAnswer(null);
+          setSelectedAnswers([]);
           setHasAnswered(false);
           break;
         case "answer_submitted":
@@ -114,15 +116,39 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
   }, [timeLeft, hasAnswered]);
 
   const selectAnswer = (answerIndex: number) => {
-    if (hasAnswered || !currentQuestion) return;
+    if (hasAnswered || !currentQuestion || gameState.isHost) return;
 
-    setSelectedAnswer(answerIndex);
+    // For single choice questions, submit immediately
+    if (currentQuestion.questionType !== 'multi_select') {
+      setSelectedAnswer(answerIndex);
+      sendMessage({
+        type: "submit_answer",
+        payload: {
+          questionId: currentQuestion.id,
+          answerIndex,
+        },
+      });
+    }
+  };
 
+  const toggleAnswer = (answerIndex: number) => {
+    if (hasAnswered || !currentQuestion || gameState.isHost) return;
+
+    setSelectedAnswers(prev => 
+      prev.includes(answerIndex) 
+        ? prev.filter(i => i !== answerIndex) 
+        : [...prev, answerIndex]
+    );
+  };
+  
+  const submitMultiAnswer = () => {
+    if (hasAnswered || !currentQuestion || gameState.isHost) return;
+    
     sendMessage({
-      type: "submit_answer",
+      type: 'submit_answer',
       payload: {
         questionId: currentQuestion.id,
-        answerIndex,
+        answerIndices: selectedAnswers,
       },
     });
   };
@@ -167,41 +193,54 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
         </div>
 
         {/* Answer Choices */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {currentQuestion.answers.map((answer, index) => (
-            <Button
-              key={index}
-              onClick={() => selectAnswer(index)}
-              disabled={hasAnswered || gameState.isHost}
-              className={`
-                ${
-                  ANSWER_COLORS[index]
-                } text-white p-8 rounded-3xl text-xl font-bold 
-                transform transition-all shadow-2xl h-auto min-h-[120px]
-                ${
-                  selectedAnswer === index
-                    ? "ring-4 ring-white scale-105"
-                    : "hover:scale-105"
-                }
-                ${hasAnswered ? "opacity-50" : ""}
-              `}
-            >
-              <div className="flex items-center justify-center space-x-4">
-                <div
-                  className={`bg-white ${ANSWER_TEXT_COLORS[index]} w-12 h-12 rounded-full flex items-center justify-center font-black text-2xl`}
-                >
-                  {String.fromCharCode(65 + index)}
+        <div className="grid md:grid-cols-2 gap-8 mb-8">
+          {currentQuestion.answers.map((answer, index) => {
+            const isSelected = currentQuestion.questionType === 'multi_select'
+              ? selectedAnswers.includes(index)
+              : selectedAnswer === index;
+
+            return (
+              <Button
+                key={index}
+                onClick={() => currentQuestion.questionType === 'multi_select' ? toggleAnswer(index) : selectAnswer(index)}
+                disabled={hasAnswered || gameState.isHost}
+                className={`
+                  ${ANSWER_COLORS[index]} text-white p-8 rounded-3xl text-xl font-bold 
+                  transform transition-all shadow-2xl h-auto min-h-[120px]
+                  ${isSelected ? "ring-4 ring-white scale-105" : "hover:scale-105"}
+                  ${hasAnswered ? "opacity-50" : ""}
+                `}
+              >
+                <div className="flex items-center justify-center space-x-4">
+                  <div
+                    className={`bg-white ${ANSWER_TEXT_COLORS[index]} w-12 h-12 rounded-full flex items-center justify-center font-black text-2xl`}
+                  >
+                    {String.fromCharCode(65 + index)}
+                  </div>
+                  <span className="text-left flex-1">{answer}</span>
                 </div>
-                <span className="text-left flex-1">{answer}</span>
-              </div>
-            </Button>
-          ))}
+              </Button>
+            );
+          })}
         </div>
+        
+        {/* Multi-select Submit Button */}
+        {currentQuestion.questionType === 'multi_select' && !hasAnswered && !gameState.isHost && (
+          <div className="text-center mb-8">
+            <Button
+              onClick={submitMultiAnswer}
+              disabled={selectedAnswers.length === 0}
+              className="bg-white text-indigo-600 px-12 py-4 text-xl font-bold hover:bg-gray-100 transition-all rounded-full shadow-lg"
+            >
+              Submit Answer
+            </Button>
+          </div>
+        )}
 
         {/* Players Status */}
-        <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-4 text-center">
-          <span className="text-white text-lg font-semibold">
-            {hasAnswered ? "Answer submitted!" : "Choose your answer"}
+        <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-full p-4 text-center">
+          <span className="text-white text-lg font-semibold tracking-wider">
+            {hasAnswered ? "Answer Submitted!" : "Choose your answer"}
           </span>
         </div>
       </div>

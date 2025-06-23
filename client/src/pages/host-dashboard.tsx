@@ -220,6 +220,42 @@ export default function HostDashboard({
     }
   };
 
+  const rehostGame = async (gameId: string) => {
+    try {
+      const response = await apiRequest("POST", `/api/games/${gameId}/rehost`);
+      const newGame = await response.json();
+
+      // Also store the new game's ID in localStorage for history
+      const hostedGames = JSON.parse(
+        localStorage.getItem("hostedGames") || "[]"
+      );
+      hostedGames.push(newGame.id);
+      localStorage.setItem("hostedGames", JSON.stringify(hostedGames));
+
+      queryClient.invalidateQueries({ queryKey: ["/api/host/games"] });
+
+      toast({
+        title: "Game Ready!",
+        description: `A new lobby has been created with room code: ${newGame.gameCode}`,
+      });
+
+      onNavigate({
+        type: "game-lobby",
+        gameId: newGame.id,
+        gameCode: newGame.gameCode,
+        playerId: newGame.hostId,
+        isHost: true,
+      });
+    } catch (error) {
+      console.error("Error re-hosting game:", error);
+      toast({
+        title: "Error",
+        description: "Failed to re-host the game. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)]">
       <section className="container mx-auto px-4 py-8">
@@ -548,53 +584,26 @@ export default function HostDashboard({
                   </div>
 
                   {gameHistory && gameHistory.length > 0 ? (
-                    <div className="grid gap-4">
-                      {gameHistory.map((game: GameHistory) => (
+                    <div className="space-y-4">
+                      {gameHistory.map((game) => (
                         <Card
                           key={game.id}
-                          className="p-6 hover:shadow-lg transition-shadow"
+                          className="p-4 flex justify-between items-center"
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="text-lg font-bold">
-                                {game.title}
-                              </h4>
-                              <p className="text-sm text-gray-500">
-                                Code:{" "}
-                                <span className="font-mono bg-gray-100 p-1 rounded">
-                                  {game.gameCode}
-                                </span>
-                              </p>
-                            </div>
-                            <div className="flex items-center space-x-4">
-                              <div className="text-center">
-                                <p className="font-bold">{game.playerCount}</p>
-                                <p className="text-xs text-gray-500">Players</p>
-                              </div>
-                              <div className="text-center">
-                                <p className="font-bold">
-                                  {game.questionCount}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Questions
-                                </p>
-                              </div>
-                              <Button
-                                size="sm"
-                                onClick={() =>
-                                  onNavigate({
-                                    type: "game-lobby",
-                                    gameId: game.id,
-                                    gameCode: game.gameCode,
-                                    isHost: true,
-                                  })
-                                }
-                                className="bg-quiz-green text-white hover:bg-green-600"
-                              >
-                                Re-host
-                              </Button>
-                            </div>
+                          <div>
+                            <h4 className="font-bold">{game.title}</h4>
+                            <p className="text-sm text-gray-500">
+                              {game.questionCount} questions, {game.playerCount}{" "}
+                              players, Code: {game.gameCode}
+                            </p>
                           </div>
+                          <Button
+                            onClick={() => rehostGame(String(game.id))}
+                            className="bg-quiz-green text-white hover:bg-green-600"
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Re-host
+                          </Button>
                         </Card>
                       ))}
                     </div>

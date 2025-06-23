@@ -61,7 +61,8 @@ export interface PlayerAnswer {
   id: string;
   playerId: string;
   questionId: string;
-  selectedAnswerIndex: number;
+  selectedAnswerIndex?: number;
+  selectedAnswerIndices?: number[];
   answeredAt: Date | string;
   timeToAnswer: number;
   pointsEarned: number;
@@ -70,7 +71,8 @@ export interface PlayerAnswer {
 export interface InsertPlayerAnswer {
   playerId: string;
   questionId: string;
-  selectedAnswerIndex: number;
+  selectedAnswerIndex?: number;
+  selectedAnswerIndices?: number[];
   timeToAnswer: number;
 }
 

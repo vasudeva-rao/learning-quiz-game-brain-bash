@@ -24,9 +24,7 @@ export default function QuestionResults({
   gameState,
   onNavigate,
 }: QuestionResultsProps) {
-  const [question, setQuestion] = useState<
-    (QuestionData & { correctAnswerIndex: number }) | null
-  >(null);
+  const [question, setQuestion] = useState<QuestionData | null>(null);
   const [answerBreakdown, setAnswerBreakdown] = useState<AnswerBreakdown[]>([]);
   const [players, setPlayers] = useState<PlayerData[]>([]);
 
@@ -88,94 +86,75 @@ export default function QuestionResults({
 
   if (!question) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[hsl(142,76%,36%)] to-[hsl(217,91%,60%)] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-indigo-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading results...</div>
       </div>
     );
   }
 
-  const correctCount =
-    answerBreakdown.find((b) => b.answerIndex === question.correctAnswerIndex)
-      ?.count || 0;
+  const isMultiSelect = question.questionType === 'multi_select';
+  const correctIndices: number[] = isMultiSelect 
+    ? (question.correctAnswerIndices ?? []) 
+    : (question.correctAnswerIndex !== undefined ? [question.correctAnswerIndex] : []);
+
   const totalCount = answerBreakdown.reduce((sum, b) => sum + b.count, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[hsl(142,76%,36%)] to-[hsl(217,91%,60%)] flex items-center justify-center px-4">
-      <div className="max-w-4xl mx-auto w-full text-center">
-        {/* Correct Answer Display */}
-        <div className="mb-8">
-          <h2 className="text-4xl md:text-6xl font-bold text-white mb-4">
-            Correct Answer!
-          </h2>
-          <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-3xl p-8 mb-6">
-            <div
-              className={`${getAnswerColor(
-                question.correctAnswerIndex
-              )} text-white p-6 rounded-2xl inline-block`}
-            >
-              <div className="flex items-center justify-center space-x-4">
-                <div
-                  className={`bg-white ${
-                    ANSWER_TEXT_COLORS[question.correctAnswerIndex]
-                  } w-16 h-16 rounded-full flex items-center justify-center font-black text-3xl`}
-                >
-                  {String.fromCharCode(65 + question.correctAnswerIndex)}
-                </div>
-                <span className="text-2xl font-bold">
-                  {question.answers[question.correctAnswerIndex]}
-                </span>
-              </div>
-            </div>
-          </div>
-          <p className="text-white text-xl opacity-90">
-            {correctCount} out of {totalCount} players got it right!
+    <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-indigo-900 flex flex-col justify-center items-center p-4 sm:p-6 md:p-8">
+      <div className="w-full max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight">
+            {isMultiSelect ? 'Correct Answers' : 'Correct Answer'}
+          </h1>
+          <p className="text-gray-200 mt-2 text-lg">
+            Here's how everyone did.
           </p>
         </div>
 
-        {/* Answer Breakdown */}
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
-          {answerBreakdown.map((breakdown, index) => {
-            const isCorrect = index === question.correctAnswerIndex;
-            return (
-              <div
-                key={index}
-                className={`bg-white bg-opacity-20 backdrop-blur-sm rounded-xl p-4 ${
-                  isCorrect ? "bg-opacity-30 border-2 border-white" : ""
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className={`${getAnswerColor(
-                        index
-                      )} w-8 h-8 rounded-full flex items-center justify-center text-white font-bold`}
-                    >
+        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 mb-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">{question.questionText}</h2>
+          <div className="space-y-4">
+            {question.answers.map((answer, index) => {
+              const isCorrect = correctIndices.includes(index);
+              const breakdown = answerBreakdown.find(b => b.answerIndex === index);
+              const count = breakdown?.count || 0;
+              const percentage = totalCount > 0 ? ((count / totalCount) * 100).toFixed(0) : 0;
+
+              return (
+                <div key={index} className={`p-4 rounded-lg flex items-center justify-between transition-all duration-300 ${isCorrect ? 'bg-green-100' : 'bg-gray-50'}`}>
+                  <div className="flex items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-4 font-bold text-white ${isCorrect ? 'bg-green-500' : 'bg-gray-400'}`}>
                       {String.fromCharCode(65 + index)}
                     </div>
-                    <span className="text-white font-semibold">
-                      {question.answers[index]} {isCorrect ? "✓" : ""}
-                    </span>
+                    <span className={`font-semibold ${isCorrect ? 'text-green-800' : 'text-gray-700'}`}>{answer}</span>
                   </div>
-                  <span className="text-white font-bold">
-                    {breakdown.count} player{breakdown.count !== 1 ? "s" : ""}
-                  </span>
+                  <div className="flex items-center">
+                    <div className="w-32 bg-gray-200 rounded-full h-4 mr-4">
+                      <div 
+                        className={`h-4 rounded-full ${isCorrect ? 'bg-green-400' : 'bg-gray-400'}`}
+                        style={{ width: `${percentage}%` }}
+                      ></div>
+                    </div>
+                    <span className="font-bold text-gray-600 w-24 text-right">{count} player{count !== 1 ? 's' : ''}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
-        {/* Next Button */}
         {gameState.isHost ? (
-          <Button
-            onClick={nextQuestion}
-            className="bg-white text-quiz-purple px-12 py-4 text-xl font-bold hover:shadow-lg transition-shadow"
-          >
-            Next Question
-            <ArrowRight className="w-6 h-6 ml-3" />
-          </Button>
+          <div className="text-center">
+            <Button
+              onClick={nextQuestion}
+              className="bg-white text-indigo-600 px-12 py-4 text-xl font-bold hover:bg-gray-100 transition-all rounded-full shadow-lg"
+            >
+              Next Question
+              <ArrowRight className="w-6 h-6 ml-3" />
+            </Button>
+          </div>
         ) : (
-          <p className="text-white text-xl">
+          <p className="text-center text-gray-200 text-xl">
             Waiting for the host to continue...
           </p>
         )}

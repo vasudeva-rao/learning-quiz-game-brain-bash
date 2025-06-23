@@ -174,5 +174,62 @@ export async function registerRoutes(
     }
   });
 
+  // Re-host a game
+  app.post("/api/games/:gameId/rehost", async (req, res) => {
+    try {
+      const { gameId } = req.params;
+
+      // 1. Get the original game and its questions
+      const originalGame = await storage.getGameById(gameId);
+      if (!originalGame) {
+        return res.status(404).json({ error: "Original game not found" });
+      }
+      const originalQuestions = await storage.getQuestionsByGameId(gameId);
+
+      // 2. Create a new game, copying details from the original
+      const newGameData = {
+        title: originalGame.title,
+        description: originalGame.description,
+        timePerQuestion: originalGame.timePerQuestion,
+        pointsPerQuestion: originalGame.pointsPerQuestion,
+        hostId: "", // will be set after creating the host player
+      };
+      const newGame = await storage.createGame(newGameData);
+
+      // 3. Create a new host player for the new game
+      const hostPlayer = await storage.createPlayer({
+        gameId: newGame.id,
+        name: "Host",
+        avatar: "🎯",
+      });
+      await storage.updatePlayerAsHost(hostPlayer.id);
+      await storage.updateGameHostId(newGame.id, hostPlayer.id);
+
+      // 4. Copy questions to the new game
+      for (let i = 0; i < originalQuestions.length; i++) {
+        const q = originalQuestions[i];
+        await storage.createQuestion({
+          gameId: newGame.id,
+          questionText: q.questionText,
+          questionType: q.questionType,
+          answers: q.answers,
+          correctAnswerIndex: q.correctAnswerIndex,
+          correctAnswerIndices: q.correctAnswerIndices,
+          questionOrder: i,
+        });
+      }
+      
+      // 5. Return the new game details to the client
+      res.json({
+        ...newGame,
+        hostId: hostPlayer.id,
+      });
+
+    } catch (error) {
+      console.error("Error re-hosting game:", error);
+      res.status(500).json({ error: "Failed to re-host game" });
+    }
+  });
+
   return httpServer;
 }
