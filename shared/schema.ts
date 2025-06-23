@@ -11,6 +11,7 @@ export interface Game {
   status: string; // lobby, active, completed
   currentQuestionIndex: number;
   createdAt: Date | string;
+  finalResults?: Player[];
 }
 
 export interface InsertGame {

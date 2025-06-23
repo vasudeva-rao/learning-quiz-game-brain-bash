@@ -23,6 +23,7 @@ export interface IStorage {
     questionIndex: number
   ): Promise<Game | undefined>;
   updateGameHostId(gameId: string, hostId: string): Promise<Game | undefined>;
+  finalizeGame(gameId: string): Promise<Game | undefined>;
   createQuestion(question: InsertQuestion): Promise<Question>;
   getQuestionsByGameId(gameId: string): Promise<Question[]>;
   getQuestionById(id: string): Promise<Question | undefined>;
@@ -171,6 +172,48 @@ export class MongoStorage implements IStorage {
     if (!result) return undefined;
     const { _id, createdAt, ...rest } = result;
     return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
+  }
+
+  async finalizeGame(gameId: string): Promise<Game | undefined> {
+    if (!ObjectId.isValid(gameId)) return undefined;
+
+    // Get final player standings
+    const players = await this.getPlayersByGameId(gameId);
+    const finalResults = players.sort((a, b) => b.score - a.score);
+
+    // Update the game document
+    const result = await this.games.findOneAndUpdate(
+      { _id: new ObjectId(gameId) as any },
+      { $set: { status: "completed", finalResults: finalResults } },
+      { returnDocument: "after" }
+    );
+    if (!result) return undefined;
+
+    // The findOneAndUpdate operation in MongoDB returns a document that might not
+    // be perfectly typed according to our interfaces, especially with nested arrays.
+    // We manually cast and map the result to ensure it conforms to our `Game` interface.
+    const finalGameDoc = result as unknown as DbGame & { _id: ObjectId };
+    const { _id, createdAt, ...rest } = finalGameDoc;
+
+    const finalGame: Game = {
+      ...rest,
+      id: _id.toString(),
+      createdAt: createdAt.toISOString(),
+    };
+
+    if (finalGame.finalResults) {
+      finalGame.finalResults = (finalGame.finalResults as any[]).map(
+        (playerDoc) => {
+          return {
+            ...playerDoc,
+            id: playerDoc._id?.toString() ?? playerDoc.id,
+            joinedAt: new Date(playerDoc.joinedAt).toISOString(),
+          };
+        }
+      );
+    }
+
+    return finalGame;
   }
 
   // --- Question Operations ---

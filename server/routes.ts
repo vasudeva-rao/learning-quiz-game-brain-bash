@@ -157,12 +157,24 @@ export async function registerRoutes(
       // Add player count and question count for each game
       const gamesWithDetails = await Promise.all(
         games.map(async (game) => {
-          const players = await storage.getPlayersByGameId(game.id);
+          let playerCount = 0;
+          if (game.status === 'completed' && game.finalResults) {
+            playerCount = game.finalResults.filter(p => !p.isHost).length;
+          } else {
+            const players = await storage.getPlayersByGameId(game.id);
+            playerCount = players.filter(p => !p.isHost).length;
+          }
+
           const questions = await storage.getQuestionsByGameId(game.id);
           return {
             ...game,
-            playerCount: players.filter((p) => !p.isHost).length,
+            playerCount: playerCount,
             questionCount: questions.length,
+            // Ensure player IDs in finalResults are strings
+            finalResults: game.finalResults?.map(p => ({
+              ...p,
+              id: (p as any)._id?.toString() ?? p.id,
+            })),
           };
         })
       );

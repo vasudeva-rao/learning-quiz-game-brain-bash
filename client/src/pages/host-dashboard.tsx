@@ -19,15 +19,25 @@ import { useQuery } from "@tanstack/react-query";
 import {
   CheckSquare,
   Circle,
+  Crown,
   HelpCircle,
   History,
+  Medal,
   Play,
   Plus,
   RefreshCw,
   Trash2,
+  Trophy,
+  Users,
   X,
 } from "lucide-react";
 import { useState } from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface HostDashboardProps {
   gameState: GameState;
@@ -42,8 +52,16 @@ interface Question {
   correctAnswerIndices?: number[];
 }
 
+interface Player {
+  id: string;
+  name: string;
+  avatar: string;
+  score: number;
+  isHost: boolean;
+}
+
 interface GameHistory {
-  id: number;
+  id: string;
   title: string;
   description: string | null;
   gameCode: string;
@@ -51,6 +69,7 @@ interface GameHistory {
   playerCount: number;
   questionCount: number;
   createdAt: string;
+  finalResults?: Player[];
 }
 
 export default function HostDashboard({
@@ -167,6 +186,7 @@ export default function HostDashboard({
       // Create game
       const gameResponse = await apiRequest("POST", "/api/games", {
         title: gameTitle,
+        description: gameDescription,
         timePerQuestion: parseInt(timePerQuestion),
         pointsPerQuestion: parseInt(pointsPerQuestion),
       });
@@ -217,6 +237,12 @@ export default function HostDashboard({
       });
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleTabChange = (value: string) => {
+    if (value === "history") {
+      queryClient.refetchQueries({ queryKey: ["/api/host/games"] });
     }
   };
 
@@ -276,7 +302,7 @@ export default function HostDashboard({
               </div>
             </div>
 
-            <Tabs defaultValue="create" className="w-full">
+            <Tabs defaultValue="create" className="w-full" onValueChange={handleTabChange}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="create">Create New Game</TabsTrigger>
                 <TabsTrigger value="history">Game History</TabsTrigger>
@@ -573,40 +599,116 @@ export default function HostDashboard({
               </TabsContent>
 
               <TabsContent value="history" className="mt-6">
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-gray-800">
-                      Your Game History
-                    </h3>
+                    <div>
+                      <h3 className="text-xl font-bold">My Games</h3>
+                      <p className="text-gray-500">
+                        Review your past games or start a new one.
+                      </p>
+                    </div>
                     <div className="text-sm text-gray-500">
-                      {gameHistory?.length || 0} total games
+                      {gameHistory.length} total games
                     </div>
                   </div>
-
-                  {gameHistory && gameHistory.length > 0 ? (
-                    <div className="space-y-4">
-                      {gameHistory.map((game) => (
-                        <Card
-                          key={game.id}
-                          className="p-4 flex justify-between items-center"
-                        >
-                          <div>
-                            <h4 className="font-bold">{game.title}</h4>
-                            <p className="text-sm text-gray-500">
-                              {game.questionCount} questions, {game.playerCount}{" "}
-                              players, Code: {game.gameCode}
-                            </p>
-                          </div>
-                          <Button
-                            onClick={() => rehostGame(String(game.id))}
-                            className="bg-quiz-green text-white hover:bg-green-600"
-                          >
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Re-host
-                          </Button>
-                        </Card>
+                  {gameHistory.length > 0 ? (
+                    <Accordion type="single" collapsible className="w-full">
+                      {gameHistory.map((game, index) => (
+                        <AccordionItem value={`item-${index}`} key={game.id}>
+                          <AccordionTrigger className="hover:no-underline">
+                            <div className="flex justify-between items-center w-full pr-4">
+                              <div className="text-left">
+                                <p className="text-lg font-semibold text-gray-800">
+                                  {game.title}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  Played on{" "}
+                                  {new Date(game.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-sm text-gray-600 flex items-center gap-1">
+                                  <Users className="w-4 h-4" />
+                                  {game.playerCount}
+                                </span>
+                                <span
+                                  className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                    game.status === "completed"
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-yellow-100 text-yellow-700"
+                                  }`}
+                                >
+                                  {game.status}
+                                </span>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="pl-2 pr-4 py-2 bg-gray-50 rounded-b-lg">
+                              <div className="flex justify-between items-center mb-4">
+                                <div>
+                                  <p className="text-md font-semibold text-gray-700">
+                                    Final Standings
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    Room Code: {game.gameCode}
+                                  </p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => rehostGame(game.id)}
+                                >
+                                  <RefreshCw className="w-4 h-4 mr-2" />
+                                  Re-host
+                                </Button>
+                              </div>
+                              <div className="space-y-3">
+                                {game.finalResults &&
+                                game.finalResults.filter((p) => !p.isHost).length >
+                                  0 ? (
+                                  game.finalResults
+                                    .filter((p) => !p.isHost)
+                                    .map((player, playerIndex) => (
+                                      <div
+                                        key={player.id}
+                                        className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <span className="font-bold text-gray-600 w-5 text-center">
+                                            {playerIndex === 0 ? (
+                                              <Crown className="w-5 h-5 text-yellow-500" />
+                                            ) : playerIndex === 1 ? (
+                                              <Trophy className="w-5 h-5 text-slate-400" />
+                                            ) : playerIndex === 2 ? (
+                                              <Medal className="w-5 h-5 text-yellow-700" />
+                                            ) : (
+                                              playerIndex + 1
+                                            )}
+                                          </span>
+                                          <span className="text-2xl">
+                                            {player.avatar}
+                                          </span>
+                                          <span className="font-medium text-gray-800">
+                                            {player.name}
+                                          </span>
+                                        </div>
+                                        <span className="font-bold text-gray-700">
+                                          {player.score.toLocaleString()} pts
+                                        </span>
+                                      </div>
+                                    ))
+                                ) : (
+                                  <p className="text-center text-gray-500 py-4">
+                                    No player data available for this game.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
                       ))}
-                    </div>
+                    </Accordion>
                   ) : (
                     <div className="text-center py-12">
                       <History className="w-16 h-16 text-gray-300 mx-auto mb-4" />

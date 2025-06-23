@@ -296,12 +296,12 @@ class GameWebSocketServer {
     const questions = await this.storage.getQuestionsByGameId(game.id);
     if (questionIndex >= questions.length) {
       // No more questions, end the game
-      await this.storage.updateGameStatus(game.id, "completed");
-      const players = await this.storage.getPlayersByGameId(game.id);
+      const finalGame = await this.storage.finalizeGame(game.id);
+
       this.broadcastToRoom(gameCode, {
         type: "game_completed",
         payload: {
-          players: players.sort((a, b) => b.score - a.score),
+          players: finalGame?.finalResults ?? [],
         },
       });
       return;
@@ -488,6 +488,19 @@ class GameWebSocketServer {
         players: players.sort((a, b) => b.score - a.score),
       },
     });
+
+    // After broadcasting results, check if the game should end
+    const game = await this.storage.getGameById(room.gameId);
+    if (!game) return;
+
+    const questions = await this.storage.getQuestionsByGameId(room.gameId);
+    if (game.currentQuestionIndex >= questions.length - 1) {
+      // This was the last question, finalize the game
+      await this.storage.finalizeGame(room.gameId);
+      // The `game_completed` message is now sent from `startQuestion` when it's
+      // called one last time by the host clicking "Next". We can optionally send it here too,
+      // but that might create a race condition. The current flow is okay.
+    }
   }
 
   private handleDisconnection(ws: WebSocket) {
