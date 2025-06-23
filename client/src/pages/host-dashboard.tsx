@@ -38,6 +38,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useTheme } from "@/components/theme-provider";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 interface HostDashboardProps {
   gameState: GameState;
@@ -76,6 +78,7 @@ export default function HostDashboard({
   gameState,
   onNavigate,
 }: HostDashboardProps) {
+  const { theme } = useTheme();
   const { toast } = useToast();
   const [gameTitle, setGameTitle] = useState("");
   const [gameDescription, setGameDescription] = useState("");
@@ -282,16 +285,24 @@ export default function HostDashboard({
     }
   };
 
+  const getBackgroundClass = () => {
+    if (theme === "original") {
+      return "bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)]";
+    }
+    return "bg-background";
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)]">
+    <div className={`min-h-screen ${getBackgroundClass()}`}>
       <section className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <Card className="p-8 shadow-2xl">
+          <Card className="p-8 shadow-2xl bg-card">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold text-gray-800">
+              <h2 className="text-3xl font-bold text-foreground">
                 Host Dashboard
               </h2>
               <div className="flex items-center gap-4">
+                <ThemeSwitcher />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -312,25 +323,23 @@ export default function HostDashboard({
                 {/* Game Settings */}
                 <div className="grid md:grid-cols-2 gap-8 mb-8">
                   <div>
-                    <Label className="text-sm font-semibold text-gray-700 mb-2">
+                    <Label className="text-sm font-semibold text-foreground mb-2">
                       Game Title
                     </Label>
                     <Input
                       placeholder="Enter quiz title..."
                       value={gameTitle}
                       onChange={(e) => setGameTitle(e.target.value)}
-                      className="border-2 focus:border-quiz-purple"
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-semibold text-gray-700 mb-2">
+                    <Label className="text-sm font-semibold text-foreground mb-2">
                       Description
                     </Label>
                     <Input
                       placeholder="Brief description..."
                       value={gameDescription}
                       onChange={(e) => setGameDescription(e.target.value)}
-                      className="border-2 focus:border-quiz-purple"
                     />
                   </div>
                 </div>
@@ -338,14 +347,14 @@ export default function HostDashboard({
                 {/* Game Configuration */}
                 <div className="grid md:grid-cols-2 gap-6 mb-8">
                   <div>
-                    <Label className="text-sm font-semibold text-gray-700 mb-2">
+                    <Label className="text-sm font-semibold text-foreground mb-2">
                       Time per Question
                     </Label>
                     <Select
                       value={timePerQuestion}
                       onValueChange={setTimePerQuestion}
                     >
-                      <SelectTrigger className="border-2 focus:border-quiz-purple">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -357,14 +366,14 @@ export default function HostDashboard({
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-sm font-semibold text-gray-700 mb-2">
+                    <Label className="text-sm font-semibold text-foreground mb-2">
                       Points per Question
                     </Label>
                     <Select
                       value={pointsPerQuestion}
                       onValueChange={setPointsPerQuestion}
                     >
-                      <SelectTrigger className="border-2 focus:border-quiz-purple">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -380,12 +389,12 @@ export default function HostDashboard({
                 {/* Questions Section */}
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-gray-800">
+                    <h3 className="text-xl font-bold text-foreground">
                       Questions
                     </h3>
                     <Button
                       onClick={addQuestion}
-                      className="bg-quiz-green text-white hover:bg-green-600"
+                      className="bg-green-500 text-white hover:bg-green-600"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Add Question
@@ -393,16 +402,16 @@ export default function HostDashboard({
                   </div>
 
                   {questions.map((question, questionIndex) => (
-                    <Card key={questionIndex} className="bg-gray-50 p-6 mb-4">
+                    <Card key={questionIndex} className="bg-muted/50 p-6 mb-4">
                       <div className="flex items-center justify-between mb-4">
-                        <span className="bg-quiz-purple text-white px-3 py-1 rounded-full text-sm font-semibold">
+                        <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-semibold">
                           Question {questionIndex + 1}
                         </span>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => removeQuestion(questionIndex)}
-                          className="text-quiz-red hover:text-red-600"
+                          className="text-red-500 hover:text-red-600"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -411,7 +420,7 @@ export default function HostDashboard({
                       <div className="mb-4">
                         <div className="flex gap-4 mb-3">
                           <div className="flex-1">
-                            <Label className="text-sm font-semibold text-gray-600 mb-2">
+                            <Label className="text-sm font-semibold text-muted-foreground mb-2">
                               Question Type
                             </Label>
                             <Select
@@ -424,7 +433,7 @@ export default function HostDashboard({
                                 )
                               }
                             >
-                              <SelectTrigger className="w-full">
+                              <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -460,7 +469,6 @@ export default function HostDashboard({
                               e.target.value
                             )
                           }
-                          className="border-2 focus:border-quiz-purple"
                         />
                       </div>
 
@@ -489,7 +497,7 @@ export default function HostDashboard({
                       </div>
 
                       <div>
-                        <Label className="text-sm font-semibold text-gray-600 mb-2">
+                        <Label className="text-sm font-semibold text-muted-foreground mb-2">
                           {question.questionType === "multi_select"
                             ? "Correct Answers (Multiple)"
                             : "Correct Answer"}
@@ -523,7 +531,7 @@ export default function HostDashboard({
                                 />
                                 <Label
                                   htmlFor={`correct-${questionIndex}-${index}`}
-                                  className="text-sm"
+                                  className="text-sm text-foreground"
                                 >
                                   {String.fromCharCode(65 + index)} -{" "}
                                   {answer ||
@@ -545,7 +553,7 @@ export default function HostDashboard({
                               )
                             }
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -567,7 +575,7 @@ export default function HostDashboard({
                   ))}
 
                   {questions.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       <p>
                         No questions added yet. Click "Add Question" to get
                         started!
@@ -602,12 +610,14 @@ export default function HostDashboard({
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-xl font-bold">My Games</h3>
-                      <p className="text-gray-500">
+                      <h3 className="text-xl font-bold text-foreground">
+                        My Games
+                      </h3>
+                      <p className="text-muted-foreground">
                         Review your past games or start a new one.
                       </p>
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-muted-foreground">
                       {gameHistory.length} total games
                     </div>
                   </div>
@@ -618,16 +628,16 @@ export default function HostDashboard({
                           <AccordionTrigger className="hover:no-underline">
                             <div className="flex justify-between items-center w-full pr-4">
                               <div className="text-left">
-                                <p className="text-lg font-semibold text-gray-800">
+                                <p className="text-lg font-semibold text-foreground">
                                   {game.title}
                                 </p>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-muted-foreground">
                                   Played on{" "}
                                   {new Date(game.createdAt).toLocaleDateString()}
                                 </p>
                               </div>
                               <div className="flex items-center gap-4">
-                                <span className="text-sm text-gray-600 flex items-center gap-1">
+                                <span className="text-sm text-muted-foreground flex items-center gap-1">
                                   <Users className="w-4 h-4" />
                                   {game.playerCount}
                                 </span>
@@ -644,13 +654,13 @@ export default function HostDashboard({
                             </div>
                           </AccordionTrigger>
                           <AccordionContent>
-                            <div className="pl-2 pr-4 py-2 bg-gray-50 rounded-b-lg">
+                            <div className="pl-2 pr-4 py-2 bg-muted/50 rounded-b-lg">
                               <div className="flex justify-between items-center mb-4">
                                 <div>
-                                  <p className="text-md font-semibold text-gray-700">
+                                  <p className="text-md font-semibold text-foreground">
                                     Final Standings
                                   </p>
-                                  <p className="text-sm text-gray-500">
+                                  <p className="text-sm text-muted-foreground">
                                     Room Code: {game.gameCode}
                                   </p>
                                 </div>
@@ -672,10 +682,10 @@ export default function HostDashboard({
                                     .map((player, playerIndex) => (
                                       <div
                                         key={player.id}
-                                        className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm"
+                                        className="flex items-center justify-between p-3 bg-background rounded-lg shadow-sm"
                                       >
                                         <div className="flex items-center gap-3">
-                                          <span className="font-bold text-gray-600 w-5 text-center">
+                                          <span className="font-bold text-muted-foreground w-5 text-center">
                                             {playerIndex === 0 ? (
                                               <Crown className="w-5 h-5 text-yellow-500" />
                                             ) : playerIndex === 1 ? (
@@ -689,17 +699,17 @@ export default function HostDashboard({
                                           <span className="text-2xl">
                                             {player.avatar}
                                           </span>
-                                          <span className="font-medium text-gray-800">
+                                          <span className="font-medium text-foreground">
                                             {player.name}
                                           </span>
                                         </div>
-                                        <span className="font-bold text-gray-700">
+                                        <span className="font-bold text-foreground">
                                           {player.score.toLocaleString()} pts
                                         </span>
                                       </div>
                                     ))
                                 ) : (
-                                  <p className="text-center text-gray-500 py-4">
+                                  <p className="text-center text-muted-foreground py-4">
                                     No player data available for this game.
                                   </p>
                                 )}
@@ -711,11 +721,11 @@ export default function HostDashboard({
                     </Accordion>
                   ) : (
                     <div className="text-center py-12">
-                      <History className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <h4 className="text-lg font-semibold text-gray-600 mb-2">
+                      <History className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
+                      <h4 className="text-lg font-semibold text-foreground mb-2">
                         No games yet
                       </h4>
-                      <p className="text-gray-500 mb-4">
+                      <p className="text-muted-foreground mb-4">
                         Create your first quiz game to get started
                       </p>
                       <Button
@@ -725,7 +735,7 @@ export default function HostDashboard({
                           ) as HTMLElement;
                           createTab?.click();
                         }}
-                        className="bg-quiz-purple text-white hover:bg-purple-600"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90"
                       >
                         <Plus className="w-4 h-4 mr-2" />
                         Create New Game

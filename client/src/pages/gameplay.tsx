@@ -1,3 +1,5 @@
+import { useTheme } from "@/components/theme-provider";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useWebSocket } from "@/hooks/use-websocket";
@@ -17,6 +19,7 @@ interface GameplayProps {
 }
 
 export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
+  const { theme } = useTheme();
   const { toast } = useToast();
   const [currentQuestion, setCurrentQuestion] = useState<QuestionData | null>(
     null
@@ -153,41 +156,63 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
     });
   };
 
+  const timeProgress = (timeLeft / timeLimit) * 100;
+
   const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+
+  const getBackgroundClass = () => {
+    if (theme === "original") {
+      return "bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)]";
+    }
+    return "bg-background";
+  };
+  
+  const getTextColorClass = (baseClass = 'text-white') => {
+    if (theme === "original") {
+      return baseClass;
+    }
+    return "text-foreground";
+  };
 
   if (!currentQuestion) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] flex items-center justify-center">
-        <div className="text-white text-xl">Loading question...</div>
+      <div className={`${getBackgroundClass()} min-h-screen flex items-center justify-center`}>
+        <div className={`${getTextColorClass()} text-xl`}>Loading question...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] flex items-center justify-center px-4">
+    <div className={`${getBackgroundClass()} min-h-screen flex items-center justify-center px-4`}>
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeSwitcher />
+      </div>
       <div className="max-w-4xl mx-auto w-full">
         {/* Question Header */}
         <div className="text-center mb-8">
-          <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 mb-6">
+          <div className={`${theme === 'original' ? 'bg-white bg-opacity-20 backdrop-blur-sm' : 'bg-card'} rounded-2xl p-6 mb-6`}>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-white text-lg font-semibold">
+              <span className={`${getTextColorClass('text-white')} text-lg font-semibold`}>
                 Question {currentQuestionIndex + 1} of {totalQuestions}
               </span>
-              <div className="bg-white text-quiz-purple px-4 py-2 rounded-full font-bold text-lg">
+              <div className="bg-primary-foreground text-primary px-4 py-2 rounded-full font-bold text-lg">
                 <Clock className="inline w-5 h-5 mr-2" />
                 <span>{timeLeft}s</span>
               </div>
             </div>
             {/* Progress Bar */}
-            <div className="bg-white bg-opacity-30 rounded-full h-2 mb-4">
+            <div className={`${theme === 'original' ? 'bg-white bg-opacity-30' : 'bg-secondary'} rounded-full h-2 mb-4`}>
               <div
-                className="bg-quiz-yellow h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
+                className={`${theme === 'original' ? 'bg-quiz-yellow' : 'bg-primary'} h-2 rounded-full transition-all`}
+                style={{ 
+                  width: `${timeProgress}%`,
+                  transition: 'width 1s linear'
+                }}
               ></div>
             </div>
           </div>
 
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
+          <h2 className={`text-3xl md:text-4xl lg:text-5xl font-bold ${getTextColorClass()} mb-4`}>
             {currentQuestion.questionText}
           </h2>
         </div>
@@ -207,7 +232,7 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
                 className={`
                   ${ANSWER_COLORS[index]} text-white p-8 rounded-3xl text-xl font-bold 
                   transform transition-all shadow-2xl h-auto min-h-[120px]
-                  ${isSelected ? "ring-4 ring-white scale-105" : "hover:scale-105"}
+                  ${isSelected ? "ring-4 ring-primary scale-105" : "hover:scale-105"}
                   ${hasAnswered ? "opacity-50" : ""}
                 `}
               >
@@ -230,7 +255,7 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
             <Button
               onClick={submitMultiAnswer}
               disabled={selectedAnswers.length === 0}
-              className="bg-white text-indigo-600 px-12 py-4 text-xl font-bold hover:bg-gray-100 transition-all rounded-full shadow-lg"
+              className="bg-secondary text-secondary-foreground px-12 py-4 text-xl font-bold hover:bg-secondary/90 transition-all rounded-full shadow-lg"
             >
               Submit Answer
             </Button>
@@ -238,8 +263,8 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
         )}
 
         {/* Players Status */}
-        <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-full p-4 text-center">
-          <span className="text-white text-lg font-semibold tracking-wider">
+        <div className={`${theme === 'original' ? 'bg-white bg-opacity-10 backdrop-blur-sm' : 'bg-card'} rounded-full p-4 text-center`}>
+          <span className={`${getTextColorClass('text-white')} text-lg font-semibold tracking-wider`}>
             {hasAnswered ? "Answer Submitted!" : "Choose your answer"}
           </span>
         </div>

@@ -1,3 +1,5 @@
+import { ThemeSwitcher } from "@/components/theme-switcher";
+import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +15,7 @@ interface JoinGameProps {
 }
 
 export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
+  const { theme } = useTheme();
   const { toast } = useToast();
   const [gameCode, setGameCode] = useState("");
   const [playerName, setPlayerName] = useState("");
@@ -68,25 +71,35 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
     }
   };
 
+  const getBackgroundClass = () => {
+    if (theme === "original") {
+      return "bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)]";
+    }
+    return "bg-background";
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] flex items-center justify-center px-4">
+    <div className={`min-h-screen ${getBackgroundClass()} flex items-center justify-center px-4`}>
+      <div className="absolute top-4 right-4">
+        <ThemeSwitcher />
+      </div>
       <div className="max-w-md mx-auto w-full">
-        <Card className="p-8 shadow-2xl text-center relative">
+        <Card className="p-8 shadow-2xl text-center relative bg-card">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onNavigate({ type: "home" })}
             className="absolute top-4 right-4"
           >
-            <X className="text-xl" />
+            <X className="text-xl text-muted-foreground" />
           </Button>
 
-          <div className="bg-quiz-green text-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="bg-green-500 text-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <Users className="text-3xl" />
           </div>
 
-          <h2 className="text-3xl font-bold text-gray-800 mb-2">Join Game</h2>
-          <p className="text-gray-600 mb-8">
+          <h2 className="text-3xl font-bold text-foreground mb-2">Join Game</h2>
+          <p className="text-muted-foreground mb-8">
             Enter the room code to join the quiz
           </p>
 
@@ -95,7 +108,7 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
               placeholder="Room Code (e.g., ABC123)"
               value={gameCode}
               onChange={(e) => setGameCode(e.target.value.toUpperCase())}
-              className="text-center text-2xl font-bold uppercase tracking-widest border-2 focus:border-quiz-green"
+              className="text-center text-2xl font-bold uppercase tracking-widest"
               maxLength={6}
             />
           </div>
@@ -105,25 +118,22 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
               placeholder="Your Name"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              className="text-center text-lg border-2 focus:border-quiz-green"
+              className="text-center text-lg"
             />
           </div>
 
           {/* Avatar Selection */}
           <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-700 mb-3">
+            <p className="text-sm font-semibold text-foreground mb-3">
               Choose Your Avatar
             </p>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-6 gap-4 justify-items-center">
               {AVATARS.map((avatar, index) => (
                 <Button
                   key={index}
                   variant={selectedAvatar === avatar ? "default" : "outline"}
-                  className={`w-12 h-12 text-2xl p-0 ${
-                    selectedAvatar === avatar
-                      ? "bg-quiz-green hover:bg-green-600"
-                      : "hover:scale-110"
-                  } transition-transform`}
+                  className={`w-12 h-12 text-2xl p-0 transition-transform ${selectedAvatar !== avatar && 'hover:scale-110'}`}
+                  style={selectedAvatar === avatar && theme === 'original' ? { backgroundColor: '#16a34a' } : {}}
                   onClick={() => setSelectedAvatar(avatar)}
                 >
                   {avatar}

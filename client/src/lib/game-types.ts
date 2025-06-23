@@ -54,7 +54,20 @@ export interface GameData {
   currentQuestionIndex: number;
 }
 
-export const AVATARS = ["🐱", "🐶", "🦊", "🐸", "🐨", "🦁", "🐯", "🐼"];
+export const AVATARS = [
+  "🥳",
+  "🤯",
+  "😎",
+  "🤓",
+  "🤖",
+  "👽",
+  "👻",
+  "🎃",
+  "🦄",
+  "🐲",
+  "🧠",
+  "👑",
+];
 
 export const ANSWER_COLORS = [
   "bg-quiz-red hover:bg-red-600",

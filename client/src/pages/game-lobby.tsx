@@ -1,3 +1,5 @@
+import { ThemeSwitcher } from "@/components/theme-switcher";
+import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +20,7 @@ interface GameLobbyProps {
 }
 
 export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
+  const { theme } = useTheme();
   const { toast } = useToast();
   const [players, setPlayers] = useState<PlayerData[]>([]);
   const [game, setGame] = useState<GameData | null>(null);
@@ -146,34 +149,61 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
     return colors[index % colors.length];
   };
 
+  const getPlayerTextColor = (index: number) => {
+    if(theme === 'original') {
+      return 'text-white';
+    }
+    return 'text-muted-foreground'
+  }
+
+  const getBackgroundClass = () => {
+    if (theme === "original") {
+      return "bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)]";
+    }
+    return "bg-background";
+  };
+  
+  const getLoadingTextColorClass = () => {
+    if (theme === "original") {
+      return "text-white";
+    }
+    return "text-foreground";
+  }
+
   if (!game) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] flex items-center justify-center">
-        <div className="text-white text-xl">Loading game...</div>
+      <div className={`${getBackgroundClass()} min-h-screen flex items-center justify-center`}>
+        <div className={`${getLoadingTextColorClass()} text-xl`}>Loading game...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)]">
+    <div className={`min-h-screen ${getBackgroundClass()}`}>
+      <div className="absolute top-4 right-4">
+        <ThemeSwitcher />
+      </div>
       <section className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-8 shadow-2xl">
+          <Card className="p-8 shadow-2xl bg-card">
             <div className="text-center mb-8">
-              <div className="bg-gradient-to-r from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] text-white px-6 py-3 rounded-full inline-block mb-4">
+              <div className={`
+                ${theme === 'original' ? 'bg-gradient-to-r from-[hsl(271,81%,66%)] to-[hsl(217,91%,60%)] text-white' : 'bg-primary text-primary-foreground'}
+                px-6 py-3 rounded-full inline-block mb-4
+              `}>
                 <span className="text-2xl font-bold">
                   Room: {game.gameCode}
                 </span>
               </div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">
+              <h2 className="text-3xl font-bold text-foreground mb-2">
                 {game.title}
               </h2>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 {gameState.isHost
                   ? "Waiting for players to join..."
                   : "Waiting for host to start the game..."}
               </p>
-              <div className="mt-2 text-sm text-gray-500">
+              <div className="mt-2 text-sm text-muted-foreground">
                 Connection:{" "}
                 <span
                   className={
@@ -189,20 +219,20 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
 
             {/* Players Grid */}
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">
+              <h3 className="text-xl font-bold text-foreground mb-4">
                 Players ({players.length}/20)
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {players.map((player, index) => (
                   <div
                     key={player.id}
                     className={`${getPlayerColors(
                       index
-                    )} text-white p-4 rounded-xl text-center transform hover:scale-105 transition-transform`}
+                    )} p-4 rounded-xl text-center transform hover:scale-105 transition-transform`}
                   >
-                    <div className="text-2xl mb-2">{player.avatar}</div>
-                    <div className="font-semibold">{player.name}</div>
-                    <div className="text-xs opacity-75">
+                    <div className={`text-2xl mb-2 ${theme === 'original' ? 'text-white' : 'text-foreground'}`}>{player.avatar}</div>
+                    <div className={`font-semibold ${theme === 'original' ? 'text-white' : 'text-foreground'}`}>{player.name}</div>
+                    <div className={`text-xs ${theme === 'original' ? 'text-white' : 'text-foreground'} opacity-75`}>
                       {player.isHost ? "Host" : "Ready"}
                     </div>
                   </div>
@@ -225,7 +255,7 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
                   Start Quiz!
                 </Button>
                 {players.filter((p) => !p.isHost).length === 0 && (
-                  <p className="text-gray-500 text-sm mt-2">
+                  <p className="text-muted-foreground text-sm mt-2">
                     Need at least 1 player to start the game
                   </p>
                 )}
@@ -235,7 +265,7 @@ export default function GameLobby({ gameState, onNavigate }: GameLobbyProps) {
             {/* Player Status */}
             {!gameState.isHost && (
               <div className="text-center">
-                <div className="text-gray-600">
+                <div className="text-muted-foreground">
                   Waiting for host to start the game...
                 </div>
               </div>
