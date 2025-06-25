@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(24, 9.8%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.5rem;
+
+  /* Quiz-specific colors */
+  --quiz-purple: hsl(271, 81%, 66%);
+  --quiz-blue: hsl(217, 91%, 60%);
+  --quiz-green: hsl(142, 76%, 36%);
+  --quiz-red: hsl(0, 84%, 60%);
+  --quiz-yellow: hsl(43, 96%, 56%);
+  --quiz-orange: hsl(24, 95%, 53%);
+}
+
+/* Light Theme */
+.theme-light {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(222.2, 84%, 4.9%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(222.2, 84%, 4.9%);
+  --primary: hsl(222.2, 47.4%, 11.2%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(210, 40%, 96%);
+  --secondary-foreground: hsl(222.2, 84%, 4.9%);
+}
+
+.theme-light .min-h-screen {
+  background: hsl(0, 0%, 100%);
+  color: hsl(222.2, 84%, 4.9%);
+}
+
+/* Dark Theme */
+.theme-dark {
+  --background: hsl(222.2, 84%, 4.9%);
+  --foreground: hsl(210, 40%, 98%);
+  --card: hsl(222.2, 84%, 4.9%);
+  --card-foreground: hsl(210, 40%, 98%);
+  --primary: hsl(210, 40%, 98%);
+  --primary-foreground: hsl(222.2, 47.4%, 11.2%);
+  --secondary: hsl(217.2, 32.6%, 17.5%);
+  --secondary-foreground: hsl(210, 40%, 98%);
+}
+
+.theme-dark .min-h-screen {
+  background: hsl(222.2, 84%, 4.9%);
+  color: hsl(210, 40%, 98%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: "Inter", sans-serif;
+  }
+}
+
+@layer utilities {
+  .quiz-purple {
+    background-color: var(--quiz-purple);
+  }
+  .quiz-blue {
+    background-color: var(--quiz-blue);
+  }
+  .quiz-green {
+    background-color: var(--quiz-green);
+  }
+  .quiz-red {
+    background-color: var(--quiz-red);
+  }
+  .quiz-yellow {
+    background-color: var(--quiz-yellow);
+  }
+  .quiz-orange {
+    background-color: var(--quiz-orange);
+  }
+
+  .text-quiz-purple {
+    color: var(--quiz-purple);
+  }
+  .text-quiz-blue {
+    color: var(--quiz-blue);
+  }
+  .text-quiz-green {
+    color: var(--quiz-green);
+  }
+  .text-quiz-red {
+    color: var(--quiz-red);
+  }
+  .text-quiz-yellow {
+    color: var(--quiz-yellow);
+  }
+  .text-quiz-orange {
+    color: var(--quiz-orange);
+  }
+
+  .bg-quiz-purple {
+    background-color: var(--quiz-purple);
+  }
+  .bg-quiz-blue {
+    background-color: var(--quiz-blue);
+  }
+  .bg-quiz-green {
+    background-color: var(--quiz-green);
+  }
+  .bg-quiz-red {
+    background-color: var(--quiz-red);
+  }
+  .bg-quiz-yellow {
+    background-color: var(--quiz-yellow);
+  }
+  .bg-quiz-orange {
+    background-color: var(--quiz-orange);
+  }
+
+  .border-quiz-purple {
+    border-color: var(--quiz-purple);
+  }
+}
