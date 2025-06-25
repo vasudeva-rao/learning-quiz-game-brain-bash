@@ -2,186 +2,196 @@
 
 ## Overview
 
-Brain Bash is a real-time quiz application built with React, Express, and WebSocket technology. It allows users to create and host quiz games, join games using room codes, and compete in real-time trivia sessions. The application features a modern UI with Tailwind CSS and shadcn/ui components, providing an engaging quiz experience similar to popular quiz platforms.
+Brain Bash is a real-time, multiplayer quiz platform inspired by Kahoot, built with React, TypeScript, Express, WebSocket, and MongoDB. It features a modern, responsive UI using shadcn/ui (built on Radix UI primitives) and Tailwind CSS, with smooth CSS-based animations. The app supports game creation, live hosting, player joining via room code, real-time gameplay, scoring, and results.
 
-## System Architecture
+---
 
-### Frontend Architecture
+## How to Clone and Run
 
-- **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite for fast development and optimized builds
-- **Styling**: Tailwind CSS with custom quiz-themed color schemes
-- **UI Components**: shadcn/ui component library for consistent design
-- **State Management**: React hooks and context for local state, TanStack Query for server state
-- **Routing**: wouter for lightweight client-side routing
-- **Real-time Communication**: WebSocket client for live game interactions
+1. **Clone the repository:**
 
-### Backend Architecture
+   ```bash
+   git clone https://github.com/vasudeva-rao/learning-quiz-game-brain-bash
+   cd learning-quiz-game-brain-bash
+   ```
 
-- **Runtime**: Node.js with Express.js server
-- **Language**: TypeScript with ES modules
-- **Real-time**: WebSocket server using the 'ws' library
-- **Data Validation**: Zod schemas for type-safe data validation
-- **Development**: tsx for TypeScript execution in development
+2. **Install dependencies:**
 
-### Database Layer
+   ```bash
+   npm install
+   ```
 
-- **ORM**: Drizzle ORM with PostgreSQL dialect
-- **Schema**: Defined in shared directory for type safety across client/server
-- **Migrations**: Drizzle migrations with push-based deployment
-- **Connection**: Configured for Neon serverless PostgreSQL
+3. **Set up environment variables:**
 
-## Key Components
+   - Create a `.env` file in the root directory.
+   - Add your MongoDB connection string:
+     ```env
+     MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>/<dbname>?retryWrites=true&w=majority
+     ```
 
-### Game Flow Management
+4. **Run the app in development mode (client + server with hot reload):**
 
-The application manages multiple game states through a centralized state machine:
+   ```bash
+   npm run dev
+   ```
 
-- **Home**: Initial landing page with create/join options
-- **Host Dashboard**: Game creation and question management interface
-- **Join Game**: Player entry point with room code input
-- **Game Lobby**: Pre-game waiting area showing connected players
-- **Gameplay**: Active quiz question interface with real-time responses
-- **Question Results**: Answer breakdown and scoring display
-- **Scoreboard**: Current standings between questions
-- **Final Results**: End-game results and winner announcement
+5. **Build for production:**
+   ```bash
+   npm run build
+   # Then start the server
+   npm start
+   ```
 
-### Real-time Communication
+**Notes:**
 
-WebSocket implementation handles:
+- Requires Node.js (v18+ recommended) and a running MongoDB instance (local or cloud, e.g., MongoDB Atlas).
+- The server always runs on port 5000 by default.
 
-- Player joining/leaving game rooms
-- Question broadcasting to all players
-- Answer submission and validation
-- Live score updates and game state synchronization
-- Host controls for game progression
+---
 
-### Database Schema
+## Architecture
 
-Core entities include:
+### Frontend
 
-- **Users**: Basic user authentication (placeholder implementation)
-- **Games**: Game metadata, settings, and status tracking
-- **Questions**: Quiz questions with multiple choice answers
-- **Players**: Game participants with scores and avatars
-- **PlayerAnswers**: Individual response tracking with timing data
+- **Framework:** React 18 + TypeScript
+- **Build Tool:** Vite
+- **Styling:** Tailwind CSS (custom color schemes, transitions, keyframes)
+- **UI Components:** shadcn/ui (built on Radix UI for accessibility and composability)
+- **State Management:** React hooks/context, TanStack Query for server state
+- **Routing:** wouter (minimal, fast routing)
+- **Custom Hooks:**
+  - `use-websocket`: Robust WebSocket connection, reconnection, and message handling
+  - `use-toast`: Toast notification system
+  - `use-mobile`: Responsive/mobile detection
+- **Real-time:** WebSocket client for live game state and events
+- **Animations:** Tailwind CSS transitions and custom keyframes
 
-### UI/UX Design
+### Backend
 
-- Quiz-themed color palette with purple, blue, green, red gradients
-- Responsive design optimized for both desktop and mobile devices
-- Accessibility-focused components from Radix UI primitives
-- Toast notifications for user feedback
-- Loading states and error handling throughout the application
+- **Runtime:** Node.js + Express.js
+- **Language:** TypeScript (ES modules)
+- **API:** RESTful endpoints for game, player, and question management
+- **WebSocket:** Real-time server for game events, player actions, and state sync
+- **Database:** MongoDB (persistent storage for all game, player, question, and answer data)
+- **Type Safety & Validation:** All core types/interfaces are defined in TypeScript and shared between client and server. Validation is handled via TypeScript and manual checks in the backend.
 
-## Data Flow
+---
 
-### Game Creation Flow
+## Main Features
 
-1. Host navigates to dashboard and creates game with questions
-2. Server generates unique room code and stores game data
-3. Host receives room code and can start accepting players
-4. Game enters lobby state awaiting player connections
+- Create and host quiz games with custom questions
+- Join games via unique room code and select an avatar
+- Real-time multiplayer gameplay with live question/answering
+- Host controls game flow (start, next, end)
+- Live scoreboard and results after each question
+- Final results and winner announcement
+- Game re-hosting and host game history
+- Responsive, accessible, and mobile-friendly UI
+- Smooth page/component transitions and feedback
 
-### Player Join Flow
+---
 
-1. Player enters room code and personal information
-2. Server validates room code and adds player to game
-3. WebSocket connection established for real-time updates
-4. Player appears in lobby for all participants
+## UI System
 
-### Question Gameplay Flow
+- **shadcn/ui:** Provides styled, accessible React components (Button, Dialog, Popover, Tooltip, etc.)
+- **Radix UI:** All shadcn/ui components are built on Radix UI primitives for accessibility and composability
+- **Custom Components:** ThemeProvider, ThemeSwitcher, Sidebar, Toaster, etc.
+- **Design System:** Consistent color palette, spacing, and typography via Tailwind CSS
+- **Animations:** All transitions and effects use Tailwind CSS and custom keyframes
 
-1. Host initiates question start via WebSocket
-2. Server broadcasts question data to all connected players
-3. Players submit answers within time limit
-4. Server calculates scores and broadcasts results
-5. Scoreboard displays updated standings
+---
 
-### Game Progression
+## State Management & Hooks
 
-1. Host controls transition between questions
-2. Final question triggers game completion
-3. Results calculated and winner determined
-4. Option to replay or return to main menu
+- **Game State:** Centralized in App, passed to all pages
+- **WebSocket:**
+  - Auto-reconnect, ping/keepalive, handler registration
+  - All real-time events (join, leave, question, answer, score, etc.)
+- **Toast:** Global notification system
+- **Mobile Detection:** Responsive UI adjustments
+- **Query Client:** TanStack Query for API data fetching/caching
 
-## External Dependencies
+---
 
-### Core Framework Dependencies
+## Database Schema (MongoDB)
 
-- React ecosystem: react, react-dom, @vitejs/plugin-react
-- Routing: wouter for lightweight navigation
-- HTTP client: TanStack Query for server state management
-- WebSocket: native WebSocket API for real-time features
+### Collections & Fields
 
-### UI and Styling
+- **games**
 
-- Tailwind CSS with PostCSS for styling pipeline
-- Radix UI primitives for accessible component foundation
-- Lucide React for consistent iconography
-- class-variance-authority for component variant management
+  - id (ObjectId as string)
+  - hostId (string)
+  - title (string)
+  - description (string, optional)
+  - gameCode (string, unique, 6 chars)
+  - timePerQuestion (number)
+  - pointsPerQuestion (number)
+  - status ("lobby" | "active" | "completed")
+  - currentQuestionIndex (number)
+  - createdAt (ISO string)
+  - finalResults (Player[])
 
-### Backend Infrastructure
+- **questions**
 
-- Express.js for HTTP server and API endpoints
-- ws library for WebSocket server implementation
-- Drizzle ORM with @neondatabase/serverless for database
-- Zod for runtime type validation and schema generation
+  - id (ObjectId as string)
+  - gameId (string)
+  - questionText (string)
+  - questionType ("multiple_choice" | "multi_select" | "true_false")
+  - answers (string[])
+  - correctAnswerIndex (number, optional)
+  - correctAnswerIndices (number[], optional)
+  - questionOrder (number)
 
-### Development Tools
+- **players**
 
-- TypeScript for type safety across the stack
-- tsx for TypeScript execution in development
-- ESBuild for production server bundling
-- Vite plugins for enhanced development experience
+  - id (ObjectId as string)
+  - gameId (string)
+  - name (string)
+  - avatar (string)
+  - score (number)
+  - joinedAt (ISO string)
+  - isHost (boolean)
 
-## Deployment Strategy
+- **playerAnswers**
 
-### Build Process
+  - id (ObjectId as string)
+  - playerId (string)
+  - questionId (string)
+  - selectedAnswerIndex (number, optional)
+  - selectedAnswerIndices (number[], optional)
+  - answeredAt (ISO string)
+  - timeToAnswer (number)
+  - pointsEarned (number)
 
-- **Development**: `npm run dev` starts both client and server with hot reload
-- **Production Build**: `npm run build` creates optimized client bundle and server bundle
-- **Server Bundle**: ESBuild creates single file server executable
+- **users** (optional, not used in main flow)
+  - id (string)
+  - username (string)
+  - password (string)
 
-### Environment Configuration
+---
 
-- Database connection via `DATABASE_URL` environment variable
-- Neon PostgreSQL serverless configured for production scaling
-- WebSocket server automatically adapts to HTTP/HTTPS protocols
+## Real-time Multiplayer (WebSocket)
 
-### Hosting Requirements
+- All game state, player actions, and results are synchronized via WebSocket
+- Robust reconnection, ping/keepalive, and handler system
+- Server broadcasts: player join/leave, question start, answer results, score updates, game progression
 
-- Node.js runtime environment
-- PostgreSQL database (Neon serverless recommended)
-- WebSocket support for real-time features
-- Static file serving for client assets
+---
 
-## Changelog
+## Utilities & Helpers
 
-Changelog:
+- **game-types.ts:** All game, player, and question types for state and WebSocket
+- **queryClient.ts:** TanStack Query setup and API helpers
+- **utils.ts:** Utility for class name merging (Tailwind)
 
-- June 20, 2025. Initial setup - Complete Kahoot clone implemented
-- June 20, 2025. Fixed question creation validation and storage issues
-- June 20, 2025. All core functionalities working: game creation, question management, player joining, real-time gameplay
+---
 
-## Current Status
+## Deployment & Configuration
 
-✓ Complete working Kahoot clone with all features functional:
+- **Development:** `npm run dev` (client and server with hot reload)
+- **Production:** `npm run build` (builds client and server bundles)
+- **MongoDB:** Requires a running MongoDB instance (local or cloud, e.g., MongoDB Atlas)
+- **Environment Variable:** `MONGO_URI` (connection string for MongoDB)
+- **Port:** Server runs on port 5000
 
-- Host dashboard for creating games with custom questions
-- Real-time multiplayer functionality via WebSocket
-- Player join system with room codes and avatar selection
-- Live gameplay with timed questions and scoring
-- Question results and leaderboard displays
-- Proper state management with server crash resilience (in-memory storage)
-- Host controls for progressing through questions manually
-- Full TypeScript implementation on both frontend and backend
-
-## User Preferences
-
-Preferred communication style: Simple, everyday language.
-Key requirements:
-
-- State management should handle server crashes (currently using in-memory storage)
-- Host should manually control question progression (not automatic)
-- Complete Kahoot-like functionality with real-time multiplayer support
+---
