@@ -26,7 +26,7 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
     if (!gameCode.trim() || !playerName.trim()) {
       toast({
         title: "Validation Error",
-        description: "Please enter both room code and your name.",
+        description: "Please enter both room code and display name.",
         variant: "destructive",
       });
       return;
@@ -79,7 +79,9 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
   };
 
   return (
-    <div className={`min-h-screen ${getBackgroundClass()} flex items-center justify-center px-4`}>
+    <div
+      className={`min-h-screen ${getBackgroundClass()} flex items-center justify-center px-4`}
+    >
       <div className="absolute top-4 right-4">
         <ThemeSwitcher />
       </div>
@@ -115,7 +117,7 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
 
           <div className="mb-6">
             <Input
-              placeholder="Your Name"
+              placeholder="Display Name"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               className="text-center text-lg"
@@ -132,8 +134,14 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
                 <Button
                   key={index}
                   variant={selectedAvatar === avatar ? "default" : "outline"}
-                  className={`w-12 h-12 text-2xl p-0 transition-transform ${selectedAvatar !== avatar && 'hover:scale-110'}`}
-                  style={selectedAvatar === avatar && theme === 'original' ? { backgroundColor: '#16a34a' } : {}}
+                  className={`w-12 h-12 text-2xl p-0 transition-transform ${
+                    selectedAvatar !== avatar && "hover:scale-110"
+                  }`}
+                  style={
+                    selectedAvatar === avatar && theme === "original"
+                      ? { backgroundColor: "#16a34a" }
+                      : {}
+                  }
                   onClick={() => setSelectedAvatar(avatar)}
                 >
                   {avatar}
