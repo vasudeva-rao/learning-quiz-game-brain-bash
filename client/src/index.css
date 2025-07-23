@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fade/slide-in animation for new question cards */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-fade-slide {
+  opacity: 0;
+  animation: fadeSlideIn 0.5s forwards;
+}
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(20, 14.3%, 4.1%);

@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { GameState, PlayerData, WebSocketMessage } from "@/lib/game-types";

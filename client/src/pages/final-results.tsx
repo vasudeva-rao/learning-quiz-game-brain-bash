@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";

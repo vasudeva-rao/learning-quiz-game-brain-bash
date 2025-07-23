@@ -31,7 +31,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -40,6 +40,8 @@ import {
 } from "@/components/ui/accordion";
 import { useTheme } from "@/components/theme-provider";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { useAuth } from "@/hooks/use-auth";
+import React from "react";
 
 interface HostDashboardProps {
   gameState: GameState;
@@ -80,29 +82,31 @@ export default function HostDashboard({
 }: HostDashboardProps) {
   const { theme } = useTheme();
   const { toast } = useToast();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [gameTitle, setGameTitle] = useState("");
   const [gameDescription, setGameDescription] = useState("");
   const [timePerQuestion, setTimePerQuestion] = useState("30");
   const [pointsPerQuestion, setPointsPerQuestion] = useState("1000");
+  const [allowNegativePoints, setAllowNegativePoints] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [activeTab, setActiveTab] = useState("create");
+
+  useEffect(() => {
+    document.title = "Brain Bash - Host";
+  }, []);
+
+  // Redirect to home if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      onNavigate({ type: "home" });
+    }
+  }, [isAuthenticated, isLoading, onNavigate]);
 
   // Fetch game history
   const { data: gameHistory = [] } = useQuery<GameHistory[]>({
     queryKey: ["/api/host/games"],
-    queryFn: async () => {
-      const hostedGames = JSON.parse(
-        localStorage.getItem("hostedGames") || "[]"
-      );
-      if (hostedGames.length === 0) {
-        return [];
-      }
-      const response = await apiRequest("POST", "/api/host/games", {
-        gameIds: hostedGames,
-      });
-      return response.json();
-    },
-    enabled: true, // Always try to fetch, queryFn handles the empty case
+    enabled: isAuthenticated && !!user, // Only fetch when authenticated AND user is available
   });
 
   const addQuestion = () => {
@@ -192,16 +196,10 @@ export default function HostDashboard({
         description: gameDescription,
         timePerQuestion: parseInt(timePerQuestion),
         pointsPerQuestion: parseInt(pointsPerQuestion),
+        allowNegativePoints: allowNegativePoints,
       });
 
       const game = await gameResponse.json();
-
-      // Store the gameId in localStorage for history
-      const hostedGames = JSON.parse(
-        localStorage.getItem("hostedGames") || "[]"
-      );
-      hostedGames.push(game.id);
-      localStorage.setItem("hostedGames", JSON.stringify(hostedGames));
 
       // Add questions
       await apiRequest("POST", `/api/games/${game.id}/questions`, {
@@ -254,13 +252,6 @@ export default function HostDashboard({
       const response = await apiRequest("POST", `/api/games/${gameId}/rehost`);
       const newGame = await response.json();
 
-      // Also store the new game's ID in localStorage for history
-      const hostedGames = JSON.parse(
-        localStorage.getItem("hostedGames") || "[]"
-      );
-      hostedGames.push(newGame.id);
-      localStorage.setItem("hostedGames", JSON.stringify(hostedGames));
-
       queryClient.invalidateQueries({ queryKey: ["/api/host/games"] });
 
       toast({
@@ -293,27 +284,33 @@ export default function HostDashboard({
   };
 
   return (
-    <div className={`min-h-screen ${getBackgroundClass()}`}>
+    <div className={`min-h-screen w-full ${getBackgroundClass()}`}>
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
+        <ThemeSwitcher />
+        <Button
+          variant="ghost"
+          size="lg"
+          onClick={() => onNavigate({ type: "home" })}
+          className="p-3 hover:bg-background/80 rounded-lg"
+        >
+          <X className="w-8 h-8" />
+        </Button>
+      </div>
       <section className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <Card className="p-8 shadow-2xl bg-card">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold text-foreground">
+            <div className="flex flex-col mb-8">
+              <h2 className="text-3xl font-bold text-foreground mb-2">
                 Host Dashboard
               </h2>
-              <div className="flex items-center gap-4">
-                <ThemeSwitcher />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onNavigate({ type: "home" })}
-                >
-                  <X className="text-2xl" />
-                </Button>
-              </div>
+              {user && (
+                <div className="text-2xl font-semibold text-muted-foreground">
+                  Welcome, {user.name || user.username}
+                </div>
+              )}
             </div>
 
-            <Tabs defaultValue="create" className="w-full" onValueChange={handleTabChange}>
+            <Tabs defaultValue="create" className="w-full" onValueChange={(val) => { handleTabChange(val); setActiveTab(val); }}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="create">Create New Game</TabsTrigger>
                 <TabsTrigger value="history">Game History</TabsTrigger>
@@ -330,6 +327,7 @@ export default function HostDashboard({
                       placeholder="Enter quiz title..."
                       value={gameTitle}
                       onChange={(e) => setGameTitle(e.target.value)}
+                      className="focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground/60 rounded-lg"
                     />
                   </div>
                   <div>
@@ -340,12 +338,13 @@ export default function HostDashboard({
                       placeholder="Brief description..."
                       value={gameDescription}
                       onChange={(e) => setGameDescription(e.target.value)}
+                      className="focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground/60 rounded-lg"
                     />
                   </div>
                 </div>
 
                 {/* Game Configuration */}
-                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <div className="grid md:grid-cols-3 gap-6 mb-8">
                   <div>
                     <Label className="text-sm font-semibold text-foreground mb-2">
                       Time per Question
@@ -354,7 +353,7 @@ export default function HostDashboard({
                       value={timePerQuestion}
                       onValueChange={setTimePerQuestion}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="focus:ring-2 focus:ring-primary/40 rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -373,7 +372,7 @@ export default function HostDashboard({
                       value={pointsPerQuestion}
                       onValueChange={setPointsPerQuestion}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="focus:ring-2 focus:ring-primary/40 rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -384,17 +383,44 @@ export default function HostDashboard({
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label className="text-sm font-semibold text-foreground mb-2">
+                      Allow Negative Points
+                    </Label>
+                    <div className="flex items-center space-x-2 h-10 px-3 py-2 border border-input bg-background rounded-lg">
+                      <Checkbox
+                        id="negative-points"
+                        checked={allowNegativePoints}
+                        onCheckedChange={(checked) => setAllowNegativePoints(checked === true)}
+                      />
+                      <Label
+                        htmlFor="negative-points"
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        Deduct points for wrong answers
+                      </Label>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Questions Section */}
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-foreground">
+                    <h3 className="text-2xl font-extrabold text-foreground mb-4 mt-10 border-b border-muted/30 pb-2">
                       Questions
                     </h3>
                     <Button
                       onClick={addQuestion}
-                      className="bg-green-500 text-white hover:bg-green-600"
+                      className={`rounded-full py-3 px-6 text-base font-semibold transition-all duration-200 hover:scale-105 active:scale-95
+                        ${
+                          theme === 'original'
+                            ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white'
+                            : theme === 'light'
+                            ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300'
+                            : theme === 'dark'
+                            ? 'bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                        }`}
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Add Question
@@ -402,7 +428,12 @@ export default function HostDashboard({
                   </div>
 
                   {questions.map((question, questionIndex) => (
-                    <Card key={questionIndex} className="bg-muted/50 p-6 mb-4">
+                    <Card
+                      key={questionIndex}
+                      className={`bg-muted/50 p-8 mb-6 rounded-xl shadow-lg transition-all duration-300 animate-fade-slide
+                        hover:shadow-2xl hover:-translate-y-1
+                        ${questionIndex === questions.length - 1 ? 'last:mb-10' : ''}`}
+                    >
                       <div className="flex items-center justify-between mb-4">
                         <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-semibold">
                           Question {questionIndex + 1}
@@ -411,7 +442,15 @@ export default function HostDashboard({
                           variant="ghost"
                           size="icon"
                           onClick={() => removeQuestion(questionIndex)}
-                          className="text-red-500 hover:text-red-600"
+                          className={`${
+                            theme === 'original'
+                              ? 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                              : theme === 'light'
+                              ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                              : theme === 'dark'
+                              ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                          } transition-all duration-300`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -433,7 +472,7 @@ export default function HostDashboard({
                                 )
                               }
                             >
-                              <SelectTrigger>
+                              <SelectTrigger className="focus:ring-2 focus:ring-primary/40 rounded-lg">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -469,31 +508,40 @@ export default function HostDashboard({
                               e.target.value
                             )
                           }
+                          className="focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground/60 rounded-lg"
                         />
                       </div>
 
                       <div className="grid md:grid-cols-2 gap-4 mb-4">
-                        {question.answers.map((answer, answerIndex) => (
-                          <div
-                            key={answerIndex}
-                            className={`${ANSWER_COLORS[answerIndex]} text-white p-3 rounded-xl`}
-                          >
-                            <Input
-                              placeholder={`Answer ${String.fromCharCode(
-                                65 + answerIndex
-                              )}`}
-                              value={answer}
-                              onChange={(e) =>
-                                updateAnswer(
-                                  questionIndex,
-                                  answerIndex,
-                                  e.target.value
-                                )
-                              }
-                              className="bg-transparent border-none text-white placeholder-white/70"
-                            />
-                          </div>
-                        ))}
+                        {question.answers.map((answer, answerIndex) => {
+                          // Always use white for placeholder
+                          let textColor = 'text-white';
+                          let borderColor = 'border-white/40';
+                          if (ANSWER_COLORS[answerIndex]?.includes('yellow')) {
+                            textColor = 'text-black';
+                            borderColor = 'border-black/20';
+                          }
+                          return (
+                            <div
+                              key={answerIndex}
+                              className={`${ANSWER_COLORS[answerIndex]} p-3 rounded-xl border ${borderColor}`}
+                            >
+                              <Input
+                                placeholder={`Answer ${String.fromCharCode(65 + answerIndex)}`}
+                                value={answer}
+                                onChange={(e) =>
+                                  updateAnswer(
+                                    questionIndex,
+                                    answerIndex,
+                                    e.target.value
+                                  )
+                                }
+                                className={`bg-transparent border-none font-semibold ${textColor} placeholder-white-force`}
+                                style={{ color: textColor === 'text-white' ? '#fff' : '#000' }}
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
 
                       <div>
@@ -553,7 +601,7 @@ export default function HostDashboard({
                               )
                             }
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className="focus:ring-2 focus:ring-primary/40 rounded-lg">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -571,6 +619,38 @@ export default function HostDashboard({
                           </Select>
                         )}
                       </div>
+                      {/* Only show the + button on the last question card */}
+                      {questionIndex === questions.length - 1 && (
+                        <div className="flex justify-center mt-6">
+                          <Button
+                            type="button"
+                            size="icon"
+                            onClick={() => {
+                              const newQuestions = [...questions];
+                              newQuestions.splice(questionIndex + 1, 0, {
+                                questionText: "",
+                                questionType: "multiple_choice",
+                                answers: ["", "", "", ""],
+                                correctAnswerIndex: 0,
+                                correctAnswerIndices: [],
+                              });
+                              setQuestions(newQuestions);
+                            }}
+                            className={`shadow-md z-10
+                              ${theme === 'original'
+                                ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white'
+                                : theme === 'light'
+                                ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300'
+                                : theme === 'dark'
+                                ? 'bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600'
+                                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}
+                            `}
+                            aria-label="Add Question After"
+                          >
+                            <Plus className="w-5 h-5" />
+                          </Button>
+                        </div>
+                      )}
                     </Card>
                   ))}
 

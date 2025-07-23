@@ -7,15 +7,16 @@ import {
   Player,
   PlayerAnswer,
   Question,
-} from "@shared/schema";
+} from "../shared/schema";
 import { Collection, Db, MongoClient, ObjectId } from "mongodb";
 
 // The IStorage interface defines the contract for all storage operations.
 export interface IStorage {
-  createGame(game: InsertGame & { hostId: string }): Promise<Game>;
+  createGame(game: InsertGame & { hostId: string; userId: string }): Promise<Game>;
   getGameByGameCode(gameCode: string): Promise<Game | undefined>;
   getGameById(id: string): Promise<Game | undefined>;
   getGamesByHostId(hostId: string): Promise<Game[]>;
+  getGamesByUserId(userId: string): Promise<Game[]>;
   getGamesByIds(ids: string[]): Promise<Game[]>;
   updateGameStatus(gameId: string, status: string): Promise<Game | undefined>;
   updateCurrentQuestion(
@@ -64,10 +65,12 @@ export class MongoStorage implements IStorage {
 
   // --- Game Operations ---
 
-  async createGame(gameData: InsertGame & { hostId: string }): Promise<Game> {
+  async createGame(gameData: InsertGame & { hostId: string; userId: string }): Promise<Game> {
     const gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const docToInsert = {
       ...gameData,
+      // Provide default value for backward compatibility
+      allowNegativePoints: gameData.allowNegativePoints ?? false,
       gameCode,
       status: "lobby" as const,
       currentQuestionIndex: 0,
@@ -85,7 +88,13 @@ export class MongoStorage implements IStorage {
     const doc = await this.games.findOne({ gameCode });
     if (!doc) return undefined;
     const { _id, createdAt, ...rest } = doc;
-    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
+    return { 
+      ...rest, 
+      // Provide default value for backward compatibility
+      allowNegativePoints: rest.allowNegativePoints ?? false,
+      id: _id.toString(), 
+      createdAt: createdAt.toISOString() 
+    };
   }
 
   async getGameById(id: string): Promise<Game | undefined> {
@@ -93,7 +102,13 @@ export class MongoStorage implements IStorage {
     const doc = await this.games.findOne({ _id: new ObjectId(id) as any });
     if (!doc) return undefined;
     const { _id, createdAt, ...rest } = doc;
-    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
+    return { 
+      ...rest, 
+      // Provide default value for backward compatibility
+      allowNegativePoints: rest.allowNegativePoints ?? false,
+      id: _id.toString(), 
+      createdAt: createdAt.toISOString() 
+    };
   }
 
   async getGamesByHostId(hostId: string): Promise<Game[]> {
@@ -105,6 +120,25 @@ export class MongoStorage implements IStorage {
       const { _id, createdAt, ...rest } = doc;
       return {
         ...rest,
+        // Provide default value for backward compatibility
+        allowNegativePoints: rest.allowNegativePoints ?? false,
+        id: _id.toString(),
+        createdAt: createdAt.toISOString(),
+      };
+    });
+  }
+
+  async getGamesByUserId(userId: string): Promise<Game[]> {
+    const docs = await this.games
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .toArray();
+    return docs.map((doc) => {
+      const { _id, createdAt, ...rest } = doc;
+      return {
+        ...rest,
+        // Provide default value for backward compatibility
+        allowNegativePoints: rest.allowNegativePoints ?? false,
         id: _id.toString(),
         createdAt: createdAt.toISOString(),
       };
@@ -123,6 +157,8 @@ export class MongoStorage implements IStorage {
       const { _id, createdAt, ...rest } = doc;
       return {
         ...rest,
+        // Provide default value for backward compatibility
+        allowNegativePoints: rest.allowNegativePoints ?? false,
         id: _id.toString(),
         createdAt: createdAt.toISOString(),
       };
@@ -141,7 +177,13 @@ export class MongoStorage implements IStorage {
     );
     if (!result) return undefined;
     const { _id, createdAt, ...rest } = result;
-    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
+    return { 
+      ...rest, 
+      // Provide default value for backward compatibility
+      allowNegativePoints: rest.allowNegativePoints ?? false,
+      id: _id.toString(), 
+      createdAt: createdAt.toISOString() 
+    };
   }
 
   async updateCurrentQuestion(
@@ -156,7 +198,13 @@ export class MongoStorage implements IStorage {
     );
     if (!result) return undefined;
     const { _id, createdAt, ...rest } = result;
-    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
+    return { 
+      ...rest, 
+      // Provide default value for backward compatibility
+      allowNegativePoints: rest.allowNegativePoints ?? false,
+      id: _id.toString(), 
+      createdAt: createdAt.toISOString() 
+    };
   }
 
   async updateGameHostId(
@@ -171,7 +219,13 @@ export class MongoStorage implements IStorage {
     );
     if (!result) return undefined;
     const { _id, createdAt, ...rest } = result;
-    return { ...rest, id: _id.toString(), createdAt: createdAt.toISOString() };
+    return { 
+      ...rest, 
+      // Provide default value for backward compatibility
+      allowNegativePoints: rest.allowNegativePoints ?? false,
+      id: _id.toString(), 
+      createdAt: createdAt.toISOString() 
+    };
   }
 
   async finalizeGame(gameId: string): Promise<Game | undefined> {
@@ -197,6 +251,8 @@ export class MongoStorage implements IStorage {
 
     const finalGame: Game = {
       ...rest,
+      // Provide default value for backward compatibility
+      allowNegativePoints: rest.allowNegativePoints ?? false,
       id: _id.toString(),
       createdAt: createdAt.toISOString(),
     };

@@ -1,8 +1,9 @@
-import type { InsertGame, InsertPlayer, InsertQuestion } from "@shared/schema";
+import type { InsertGame, InsertPlayer, InsertQuestion } from "../shared/schema";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import type { IStorage } from "./storage";
 import { GameWebSocketServer } from "./websocket";
+import { validateMsalToken, optionalAuth, type AuthenticatedRequest } from "./auth";
 
 export async function registerRoutes(
   app: Express,
@@ -13,25 +14,35 @@ export async function registerRoutes(
   // Initialize WebSocket server with storage
   new GameWebSocketServer(httpServer, storage);
 
-  // Create a new game
-  app.post("/api/games", async (req, res) => {
+  // Create a new game - requires authentication
+  app.post("/api/games", validateMsalToken, async (req: AuthenticatedRequest, res) => {
     try {
       const gameData: InsertGame = req.body;
-      // Create game first (without hostId)
+      
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      // Create game with userId
       const game = await storage.createGame({
         ...gameData,
-        hostId: "",
+        hostId: "", // Will be set after creating host player
+        userId: req.user.id,
       });
+      
       // Create host as player
       const hostPlayer = await storage.createPlayer({
         gameId: game.id,
-        name: "Host",
+        name: req.user.name || "Host",
         avatar: "🎯",
       });
+      
       // Update host player to be marked as host
       await storage.updatePlayerAsHost(hostPlayer.id);
+      
       // Update the game to set hostId to the host player's id
       await storage.updateGameHostId(game.id, hostPlayer.id);
+      
       // Fetch the updated game
       const updatedGame = await storage.getGameById(game.id);
       res.json(updatedGame);
@@ -142,17 +153,14 @@ export async function registerRoutes(
     }
   });
 
-  // Get host's game history
-  app.post("/api/host/games", async (req, res) => {
+  // Get host's game history - requires authentication
+  app.get("/api/host/games", validateMsalToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const { gameIds } = req.body;
-      if (!gameIds || !Array.isArray(gameIds)) {
-        return res
-          .status(400)
-          .json({ error: "Invalid request, 'gameIds' array is required." });
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "User not authenticated" });
       }
 
-      const games = await storage.getGamesByIds(gameIds);
+      const games = await storage.getGamesByUserId(req.user.id);
 
       // Add player count and question count for each game
       const gamesWithDetails = await Promise.all(
@@ -186,16 +194,26 @@ export async function registerRoutes(
     }
   });
 
-  // Re-host a game
-  app.post("/api/games/:gameId/rehost", async (req, res) => {
+  // Re-host a game - requires authentication
+  app.post("/api/games/:gameId/rehost", validateMsalToken, async (req: AuthenticatedRequest, res) => {
     try {
       const { gameId } = req.params;
+
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
 
       // 1. Get the original game and its questions
       const originalGame = await storage.getGameById(gameId);
       if (!originalGame) {
         return res.status(404).json({ error: "Original game not found" });
       }
+
+      // Verify the user owns this game
+      if (originalGame.userId !== req.user.id) {
+        return res.status(403).json({ error: "You can only rehost your own games" });
+      }
+
       const originalQuestions = await storage.getQuestionsByGameId(gameId);
 
       // 2. Create a new game, copying details from the original
@@ -204,14 +222,16 @@ export async function registerRoutes(
         description: originalGame.description,
         timePerQuestion: originalGame.timePerQuestion,
         pointsPerQuestion: originalGame.pointsPerQuestion,
+        allowNegativePoints: originalGame.allowNegativePoints,
         hostId: "", // will be set after creating the host player
+        userId: req.user.id,
       };
       const newGame = await storage.createGame(newGameData);
 
       // 3. Create a new host player for the new game
       const hostPlayer = await storage.createPlayer({
         gameId: newGame.id,
-        name: "Host",
+        name: req.user.name || "Host",
         avatar: "🎯",
       });
       await storage.updatePlayerAsHost(hostPlayer.id);
@@ -240,6 +260,44 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error re-hosting game:", error);
       res.status(500).json({ error: "Failed to re-host game" });
+    }
+  });
+
+  // Cancel a game - requires authentication and host ownership
+  app.post("/api/games/:gameId/cancel", validateMsalToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { gameId } = req.params;
+
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      // Get the game to verify ownership
+      const game = await storage.getGameById(gameId);
+      if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+      }
+
+      // Verify the user owns this game
+      if (game.userId !== req.user.id) {
+        return res.status(403).json({ error: "You can only cancel your own games" });
+      }
+
+      // Only allow cancellation if the game is in lobby or active status
+      if (game.status !== "lobby" && game.status !== "active") {
+        return res.status(400).json({ error: "Game cannot be cancelled in its current state" });
+      }
+
+      // Update game status to cancelled
+      const updatedGame = await storage.updateGameStatus(gameId, "cancelled");
+      if (!updatedGame) {
+        return res.status(500).json({ error: "Failed to cancel game" });
+      }
+
+      res.json({ message: "Game cancelled successfully", game: updatedGame });
+    } catch (error) {
+      console.error("Error cancelling game:", error);
+      res.status(500).json({ error: "Failed to cancel game" });
     }
   });
 

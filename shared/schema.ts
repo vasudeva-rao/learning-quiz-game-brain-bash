@@ -3,11 +3,13 @@
 export interface Game {
   id: string;
   hostId: string;
+  userId: string; // Microsoft/Azure AD user ID
   title: string;
   description?: string;
   gameCode: string;
   timePerQuestion: number;
   pointsPerQuestion: number;
+  allowNegativePoints: boolean;
   status: string; // lobby, active, completed
   currentQuestionIndex: number;
   createdAt: Date | string;
@@ -19,6 +21,8 @@ export interface InsertGame {
   description?: string;
   timePerQuestion: number;
   pointsPerQuestion: number;
+  allowNegativePoints: boolean;
+  userId?: string; // Optional for backward compatibility during migration
 }
 
 export interface Question {

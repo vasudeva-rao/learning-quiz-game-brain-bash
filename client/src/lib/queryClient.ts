@@ -7,14 +7,33 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Function to get access token from auth context
+let getAccessToken: (() => Promise<string | null>) | null = null;
+
+export function setAccessTokenProvider(provider: () => Promise<string | null>) {
+  getAccessToken = provider;
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...(data ? { "Content-Type": "application/json" } : {}),
+  };
+
+  // Add authorization header if available
+  if (getAccessToken) {
+    const token = await getAccessToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -29,7 +48,18 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    const headers: Record<string, string> = {};
+
+    // Add authorization header if available
+    if (getAccessToken) {
+      const token = await getAccessToken();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
+
     const res = await fetch(queryKey[0] as string, {
+      headers,
       credentials: "include",
     });
 

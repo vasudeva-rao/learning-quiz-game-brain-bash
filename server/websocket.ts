@@ -339,7 +339,11 @@ class GameWebSocketServer {
 
   private async handleSubmitAnswer(
     ws: WebSocket,
-    payload: { questionId: string; answerIndex?: number; answerIndices?: number[] }
+    payload: {
+      questionId: string;
+      answerIndex?: number;
+      answerIndices?: number[];
+    }
   ) {
     const playerInfo = this.socketToPlayer.get(ws);
     if (!playerInfo) {
@@ -377,10 +381,12 @@ class GameWebSocketServer {
     let isCorrect = false;
     let selectedAnswer: number | number[] | undefined;
 
-    if (question.questionType === 'multi_select') {
+    if (question.questionType === "multi_select") {
       const correct = question.correctAnswerIndices || [];
       const submitted = answerIndices || [];
-      isCorrect = correct.length === submitted.length && correct.every(val => submitted.includes(val));
+      isCorrect =
+        correct.length === submitted.length &&
+        correct.every((val) => submitted.includes(val));
       selectedAnswer = submitted;
     } else {
       isCorrect = answerIndex === question.correctAnswerIndex;
@@ -396,13 +402,16 @@ class GameWebSocketServer {
           (game.timePerQuestion * 1000)
       );
       pointsEarned = Math.round(game.pointsPerQuestion * timePercentage);
+    } else if (game.allowNegativePoints && player.score > 0) {
+      // Deduct points for wrong answers only if player has points to lose
+      pointsEarned = -Math.min(game.pointsPerQuestion, player.score);
     }
 
     // Save answer
     await this.storage.createPlayerAnswer({
       playerId: player.id,
       questionId,
-      selectedAnswerIndex: answerIndex, // Note: For multi-select, this is simplified.
+      selectedAnswerIndex: answerIndex,
       selectedAnswerIndices: answerIndices,
       timeToAnswer,
     });
@@ -462,12 +471,14 @@ class GameWebSocketServer {
       { length: question.answers.length },
       (_, i) => {
         let count = 0;
-        if (question.questionType === 'multi_select') {
+        if (question.questionType === "multi_select") {
           // Count how many players included this answer index in their submission
-          count = answers.filter(a => a.selectedAnswerIndices?.includes(i)).length;
+          count = answers.filter((a) =>
+            a.selectedAnswerIndices?.includes(i)
+          ).length;
         } else {
           // Count how many players chose this specific answer index
-          count = answers.filter(a => a.selectedAnswerIndex === i).length;
+          count = answers.filter((a) => a.selectedAnswerIndex === i).length;
         }
         return { answerIndex: i, count };
       }

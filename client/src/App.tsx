@@ -1,7 +1,9 @@
+import * as React from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WebSocketProvider } from "@/hooks/use-websocket";
+import { AuthProvider } from "@/hooks/use-auth";
 import { GameState } from "@/lib/game-types";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
@@ -55,6 +57,7 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthProvider>
       <ThemeProvider>
         <TooltipProvider>
           <WebSocketProvider>
@@ -63,6 +66,7 @@ function App() {
           </WebSocketProvider>
         </TooltipProvider>
       </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

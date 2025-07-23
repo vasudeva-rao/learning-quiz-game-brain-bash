@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useTheme } from "@/components/theme-provider";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Button } from "@/components/ui/button";
@@ -107,6 +108,14 @@ export default function Gameplay({ gameState, onNavigate }: GameplayProps) {
   useEffect(() => {
     connect();
   }, [connect]);
+
+  useEffect(() => {
+    if (gameState.isHost) {
+      document.title = "Brain Bash - Host";
+    } else {
+      document.title = "Brain Bash - Player";
+    }
+  }, [gameState.isHost]);
 
   // Timer countdown
   useEffect(() => {

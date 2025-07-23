@@ -1,4 +1,7 @@
-import { Card, CardContent } from "@/components/ui/card";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import { AlertCircle } from "lucide-react";
 
 export default function NotFound() {

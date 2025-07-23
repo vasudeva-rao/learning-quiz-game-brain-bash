@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AVATARS, GameState } from "@/lib/game-types";
 import { apiRequest } from "@/lib/queryClient";
 import { Users, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface JoinGameProps {
   gameState: GameState;
@@ -21,6 +22,10 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
   const [playerName, setPlayerName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0]);
   const [isJoining, setIsJoining] = useState(false);
+
+  useEffect(() => {
+    document.title = "Brain Bash";
+  }, []);
 
   const joinGame = async () => {
     if (!gameCode.trim() || !playerName.trim()) {
@@ -82,19 +87,21 @@ export default function JoinGame({ gameState, onNavigate }: JoinGameProps) {
     <div
       className={`min-h-screen ${getBackgroundClass()} flex items-center justify-center px-4`}
     >
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
         <ThemeSwitcher />
+        <Button
+          variant="ghost"
+          size="lg"
+          onClick={() => onNavigate({ type: "home" })}
+          className="p-3 hover:bg-background/80 rounded-lg transition-all duration-200"
+          aria-label="Close"
+        >
+          <X className="w-8 h-8 text-foreground" />
+        </Button>
       </div>
       <div className="max-w-md mx-auto w-full">
         <Card className="p-8 shadow-2xl text-center relative bg-card">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onNavigate({ type: "home" })}
-            className="absolute top-4 right-4"
-          >
-            <X className="text-xl text-muted-foreground" />
-          </Button>
+          {/* Remove the X button from inside the Card */}
 
           <div className="bg-green-500 text-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <Users className="text-3xl" />

@@ -1,3 +1,4 @@
+import * as React from "react";
 import { WebSocketMessage } from "@/lib/game-types";
 import {
   createContext,
@@ -49,11 +50,10 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
     }
     setConnectionState("connecting");
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const backendHost =
-      import.meta.env.VITE_BACKEND_HOST || window.location.hostname;
-    const backendPort = import.meta.env.VITE_BACKEND_PORT || "5000";
-    const wsUrl = `${protocol}//${backendHost}:${backendPort}/ws`;
-    const ws = new WebSocket(wsUrl);
+    const WS_HOST = import.meta.env.VITE_BACKEND_HOST || 'localhost';
+    const WS_PORT = import.meta.env.VITE_BACKEND_PORT || '5000';
+    const WS_URL = `${protocol}//${WS_HOST}:${WS_PORT}/ws`;
+    const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
     ws.onopen = () => {
       setIsConnected(true);
